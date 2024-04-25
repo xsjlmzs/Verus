@@ -7,7 +7,6 @@
 #include "common.h"
 #include "epoch.h"
 #include "storage.h"
-#include "txn.h"
 #include "client.h"
 #include "thread_pool.h"
 
@@ -29,27 +28,40 @@ namespace taas
         Connection* conn_;
         EpochManager* epoch_manager_;
         Storage* storage_;
-        Client* client_;
         ThreadPool* thread_pool_;
 
         bool deconstructor_invoked_;
         // for local merge <key, tid>
-        std::map<std::string, uint64> crdt_map_[kMaxEpoch];
-        // local generate txn <epoch-id, tnxs>
-        std::vector<PB::Txn> local_txns_[kMaxEpoch];
+        struct Metadata
+        {
+            uint64 sen;
+            uint64 rna;
+            uint64 csn;
+        };
+        
+        std::vector<std::map<std::string, Metadata> > crdt_map_;
+        // local txn <epoch-id, txns>
+        std::vector<std::mutex> mutexes_local_txns_;
+        std::vector<std::vector<PB::Txn> > local_txns_;
+        std::vector<std::vector<PB::Txn> > remote_txns_;
+        // WaitTxns
+        std::shared_mutex mutex_wait_;
+        std::vector<PB::Txn> wait_txns_;
+        // CommitTxns & AbortTxns
+        std::vector<std::vector<PB::Txn> > commit_txns_;
+        std::vector<std::vector<PB::Txn> > abort_txns_;
 
-        uint32_t local_server_id_;
+        uint32 server_id_;
+        uint32 parition_id_;
+        uint32 replica_id_;
         Isolation isolation;
 
-        uint64_t GenerateTid();
         void HeartbeatAllServers();
-        void Execute(const Txn& txn, PB::ClientReply* reply);
-        void ExecRead(PB::Txn* txn);
-        void ExecWrite(const PB::Txn& txn);
         void BatchWrite(const std::vector<PB::Txn>* txns);
-        
-        void WriteIntent(const PB::Txn& txn, uint64 epoch);
-        bool Validate(const PB::Txn& txn, uint64 epoch);
+        void Execute(PB::Txn* txn, uint64  cur_epoch_mod);
+        bool WriteIntent(const PB::Txn& txn, uint64 epoch);
+        bool ValidateWS(const PB::Txn& txn, uint64 epoch);
+        void ValidateAtomic(uint64 epoch);
 
         bool CheckAtomic(const PB::Txn& txn, bool committed);
         void PrintStatistic(uint32 epoch);
@@ -67,13 +79,13 @@ namespace taas
         std::condition_variable cv_;
 
     public:
-        Server(Configuration *config, Connection *conn, Client *client);
+        Server(Configuration *config, Connection *conn, uint32 node_id);
         ~Server();
         void Run();
         std::vector<PB::MessageProto>* Distribute(const std::vector<PB::Txn>& local_txns, uint64 epoch);
-        std::vector<PB::MessageProto>* Replicate(const std::vector<PB::MessageProto>& inregion_subtxns, uint64 epoch);
+        void Replicate(uint64 epoch);
         bool ValidateReadSet(const PB::Txn& txn);
-        std::vector<PB::Txn>* Merge(const std::vector<PB::MessageProto>& all_subtxns, const std::vector<PB::MessageProto>& peer_subtxns, uint64 epoch);
+        void Merge(uint64 epoch);
 
         // worker
         void Work(uint64 epoch);

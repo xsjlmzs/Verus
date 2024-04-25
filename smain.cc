@@ -4,7 +4,7 @@
 
 std::string instruction[]{"INVALID", "GET", "PUT", "DELETE"};
 std::string isolations[]{"READ_COMMIT", "REPEATABLE_READ", "SNAPSHOT ISOLATION"};
-int node_id, warerhouse = 10, percent_mp = 10, thread_num = 16;
+uint32 node_id, warerhouse = 10, percent_mp = 10, thread_num = 16;
 std::string config_path = "../conf/server_ip.conf";
 uint32 epoch_length = 10ul;
 uint64 run_epoch = 100ull;
@@ -95,13 +95,12 @@ int main(int argc, char *argv[])
     LOG(INFO) << "run_epoch : " << run_epoch; 
     LOG(INFO) << "isolation : " << isolations[isol];
     LOG(INFO) << "limit_txns : " << limit_txns;
-    std::unique_ptr<Configuration> config(new Configuration(node_id, config_path));
+    std::unique_ptr<Configuration> config(new Configuration(config_path));
     std::unique_ptr<Connection> conn(new Connection(config.get()));
-    std::unique_ptr<Client> client(new Client(config.get(), percent_mp, warerhouse));
 
     Spin(1);
 
-    std::unique_ptr<taas::Server> server(new taas::Server(config.get(), conn.get(), client.get()));
+    std::unique_ptr<taas::Server> server(new taas::Server(config.get(), conn.get(), node_id));
     server->Join();     
 
     google::ShutdownGoogleLogging();

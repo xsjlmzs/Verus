@@ -191,21 +191,3 @@ void GetRandomKey(std::set<uint64>* keys, uint32 begin, uint32 end, uint16 num)
         keys->insert(key);
     }
 }
-
-// generate workload
-void Client::GetTxn(PB::Txn** txn, uint64 txn_id)
-{
-    uint32 relative_node_id = config_->node_id_ % config_->replica_size_;
-    if (config_->replica_size_ > 1 && (uint32)(rand() % 100) < percent_mp_)
-    {
-        uint64 other;
-        do {
-            other = (uint32) (rand() % config_->replica_size_);
-        } while (other == relative_node_id);
-        *txn = tpcc.TpccTxnMP(txn_id, relative_node_id, other);
-    }
-    else
-    {
-        *txn = tpcc.TpccTxnSP(txn_id, relative_node_id);
-    }
-}

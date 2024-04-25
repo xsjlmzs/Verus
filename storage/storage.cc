@@ -27,19 +27,17 @@ std::string Storage::get(const std::string& key)
 
 void Storage::LockWrite()
 {
-    write_mtx_.lock();
-    read_mtx_.lock();
+    smutex_.lock();
 }
 void Storage::UnlockWrite()
 {
-    read_mtx_.unlock();
-    write_mtx_.unlock();
+    smutex_.unlock();
 }
 void Storage::LockRead()
 {
-    read_mtx_.lock();
+    smutex_.lock_shared();
 }
 void Storage::UnlockRead()
 {
-    read_mtx_.unlock();
+    smutex_.unlock_shared();
 }

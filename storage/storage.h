@@ -2,13 +2,13 @@
 #define STORAGE_H
 
 #include <map>
+#include <shared_mutex>
 #include "common.h"
 class Storage
 {
 private:
     std::map<std::string, std::string>* kvs_;
-    std::mutex write_mtx_;
-    std::mutex read_mtx_;
+    std::shared_mutex smutex_;
 public:
     Storage(/* args */);
     ~Storage();

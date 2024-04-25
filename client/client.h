@@ -27,7 +27,6 @@ public:
 
     void SendClientRequest(const PB::Txn& txn);
     void LoadConfig(std::string filename);
-    void GetTxn(PB::Txn** txn, uint64 txn_id);
 };
 
 

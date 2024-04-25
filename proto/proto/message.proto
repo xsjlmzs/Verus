@@ -19,6 +19,7 @@ enum TxnStatus {
     EXEC = 1;
     ABORT = 2;
     COMMIT = 3;
+    PRECOMMIT = 4;
 }
 
 // enum MessageType {
@@ -42,11 +43,16 @@ message Txn {
     uint64 end_epoch = 3;
 
     repeated Command commands = 4;
-
+    repeated uint32 related_nodes = 5;
     TxnStatus status = 7;
 
     uint64 start_ts = 8;
     uint64 end_ts = 9;
+
+    repeated string read_set = 10;
+    repeated string write_set = 11;
+
+    bool read_only = 12;
 }
 
 message ClientRequest {
@@ -80,6 +86,7 @@ message MessageProto {
         HEARTBEAT = 0;
         BATCHTXNS = 1;
         ABORTTIDS = 2;
+        SINGLETXN = 3;
     }
     
     uint32 src_node_id = 10;
@@ -96,6 +103,7 @@ message MessageProto {
         BatchTxns batch_txns = 21;
         HeartBeat heart_beat = 22;
         AbortTids abort_tids = 23;
+        Txn       single_txn = 24;
     }
 
     string debug_info = 31;

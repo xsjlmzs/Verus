@@ -47,20 +47,18 @@ bool OpenFile(const std::string& filename, std::ifstream& file) {
     return true;
 }
 
-Configuration::Configuration(int node_id, const std::string filename)
-    :node_id_(node_id) {
+// ---------------------------- Class Configureation -------------------------------
+
+Configuration::Configuration(const std::string filename)
+{
   LOG(INFO) << "Configure Construct Start";
   ReadFromFile(filename);
-  replica_id_ = all_nodes_[node_id_]->replica_id;
-  partition_id_ = all_nodes_[node_id_]->partition_id;
   replica_num_ = all_nodes_.rbegin()->second->replica_id + 1;
   if (all_nodes_.size() % replica_num_ != 0)
   {
     LOG(ERROR) << "replica size error";
   }
   replica_size_ = all_nodes_.size() / replica_num_;
-  LOG(INFO) << "replica   id : " << replica_id_   ;
-  LOG(INFO) << "partition id : " << partition_id_ ;
   LOG(INFO) << "replica num  : " << replica_num_  ;
   LOG(INFO) << "replica size : " << replica_size_ ;
 
@@ -106,16 +104,6 @@ int Configuration::ReadFromFile(const std::string& filename)
         // node->Print();
     }
     return 0;
-}
-
-int Configuration::LookupPartition(const string& key)
-{
-    return StringToInt(key) % replica_size_;
-}
-
-uint32 Configuration::LookupMachineID(int partition_id)
-{
-    return replica_id_ * replica_size_ + partition_id;
 }
 
 // ---------------------------- Class Connection -------------------------------
@@ -267,7 +255,7 @@ void Connection::Run()
         get_req = send_message_queue_->Pop(&mp);
         if (get_req)
         {
-            if (mp.dest_node_id() == config_->node_id_)
+            if (mp.dest_node_id() == mp.src_node_id())
             {
                 if (channel_results_.Count(mp.dest_channel()) == 0)
                 {

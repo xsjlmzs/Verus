@@ -8,14 +8,23 @@ extern taas::Isolation isol;
 extern uint32 limit_txns;
 namespace taas 
 {
-    Server::Server(Configuration *config, Connection *conn, Client *client)
-        :config_(config), conn_(conn), client_(client), isolation(isol), limit_epoch_(run_epoch), limit_txns_(limit_txns),deconstructor_invoked_(false)
+    Server::Server(Configuration *config, Connection *conn, uint32 node_id)
+        :config_(config), conn_(conn), isolation(isol), limit_epoch_(run_epoch), limit_txns_(limit_txns),deconstructor_invoked_(false)
     {
-        local_server_id_ = config_->node_id_;
+        server_id_ = node_id;
+        parition_id_ = node_id % config->replica_size_;
+        replica_id_ = node_id / config_->replica_size_;
         storage_ = new Storage();
         epoch_manager_ = &EpochManager::GetInstance();
         thread_pool_ = new ThreadPool(thread_num);
         thread_pool_->init();
+        // init 
+        crdt_map_.resize(thread_num);
+        mutexes_local_txns_.resize(thread_num);
+        local_txns_.resize(thread_num);
+        remote_txns_.resize(thread_num);
+        commit_txns_.resize(thread_num);
+        abort_txns_.resize(thread_num);
         LOG(INFO) << "Start Sync All Servers";
 
         HeartbeatAllServers();
@@ -32,68 +41,49 @@ namespace taas
         delete storage_, thread_pool_;
     }
 
-    uint64_t Server::GenerateTid()
-    {
-        uint64_t ms = std::chrono::system_clock::now().time_since_epoch().count();
-        return (ms << 4) + static_cast<uint64>(config_->node_id_); // *8 + node_id
-    }
-
-    void Server::Execute(const Txn& txn, PB::ClientReply* reply)
-    {
-        for (auto && cmd : txn.pb_txn_.commands())
-        {
-            if (cmd.type() == PB::OpType::GET)
-            {
-                std::string value = storage_->get(cmd.key());
-                reply->add_query_set(value.c_str());
-            }
-            else if (cmd.type() == PB::OpType::PUT)
-            {
-                storage_->put(cmd.key(), cmd.value());
-            }
-        }
-    }
-
-    // exec read op and fill the 'value'
-    void Server::ExecRead(PB::Txn* txn)
+    void Server::Execute(PB::Txn* txn, uint64 cur_epoch_mod)
     {
         storage_->LockRead();
+        txn->set_status(PB::TxnStatus::EXEC);
         for (size_t i = 0; i < txn->commands().size(); i++)
         {
-            PB::Command* cmd = txn->mutable_commands(i);
-            if (cmd->type() == PB::OpType::GET)
+            const PB::Command& stat = txn->commands(i);
+            if (stat.type() == PB::OpType::GET)
             {
-                std::string value = storage_->get(cmd->key());
-                cmd->set_value(value);
+                std::string value = storage_->get(stat.key());
+                txn->add_read_set(value);
+            }
+            else if (stat.type() == PB::OpType::PUT)
+            {
+                txn->add_write_set(stat.value());
             }
         }
         storage_->UnlockRead();
-    }
-
-    void Server::ExecWrite(const PB::Txn& txn)
-    {
-        storage_->LockWrite();
-        for (size_t i = 0; i < txn.commands().size(); i++)
-        {
-            const PB::Command& cmd = txn.commands(i);
-            if (cmd.type() == PB::OpType::PUT)
-            {
-                storage_->put(cmd.key(), cmd.value());
-            }
-        }
-        storage_->UnlockWrite();
+        txn->set_end_ts(GetTime());
+        txn->set_end_epoch(epoch_manager_->GetPhysicalEpoch());
+        txn->set_status(PB::TxnStatus::PRECOMMIT);
+        std::unique_lock<std::mutex> lk(mutexes_local_txns_[cur_epoch_mod]);
+        local_txns_[cur_epoch_mod].push_back(*txn);
     }
 
     void Server::BatchWrite(const std::vector<PB::Txn>* txns)
     {
         for (auto &&txn : *txns)
         {
+            if (!txn.read_only())
+            {
+                storage_->LockWrite();
+            }
             for (auto &&cmd : txn.commands())
             {
                 if (cmd.type() == PB::OpType::PUT)
                 {
                     storage_->put(cmd.key(), cmd.value());
                 }
+            }
+            if (!txn.read_only())
+            {
+                storage_->UnlockWrite();
             }
         }
     }
@@ -105,12 +95,12 @@ namespace taas
         PB::MessageProto sync_msg;
         sync_msg.set_type(PB::MessageProto_MessageType_HEARTBEAT);
         sync_msg.set_dest_channel(channel);
-        sync_msg.set_src_node_id(local_server_id_);
+        sync_msg.set_src_node_id(server_id_);
         for (std::map<uint32, Node*>::iterator iter = config_->all_nodes_.begin();
             iter != config_->all_nodes_.end(); ++iter)
         {
             uint32 remote_server_id = iter->first;
-            if (remote_server_id == local_server_id_)
+            if (remote_server_id == server_id_)
                 continue;
             sync_msg.set_dest_node_id(remote_server_id);
             conn_->Send(sync_msg);
@@ -131,32 +121,77 @@ namespace taas
         conn_->DeleteChannel("Heartbeat");
     }
 
-    void Server::WriteIntent(const PB::Txn& txn, uint64 epoch)
+    bool Server::WriteIntent(const PB::Txn& txn, uint64 index)
     {
         for (const auto &stat : txn.commands())
         {
             if (stat.type() == PB::OpType::PUT)
             {
-                if (crdt_map_[epoch].count(stat.key()) &&  crdt_map_[epoch][stat.key()] < txn.txn_id())
+                if (crdt_map_[index].count(stat.key()))
                 {
                     // exist earlier record
+                    const Metadata& prev_data = crdt_map_[index][stat.key()];
+                    const Metadata cur_data
+                    {
+                        sen: txn.start_epoch(),
+                        rna: txn.related_nodes().size(),
+                        csn: txn.txn_id()
+                    };
+                    if (prev_data.sen < txn.start_epoch())
+                    {
+                        crdt_map_[index][stat.key()] = cur_data;
+                    }
+                    else if (prev_data.sen == txn.start_epoch())
+                    {
+                        if (prev_data.rna > cur_data.rna)
+                        {
+                            crdt_map_[index][stat.key()] = cur_data;
+                        }
+                        else if (prev_data.rna == cur_data.rna)
+                        {
+                            if (prev_data.csn > cur_data.csn)
+                            {
+                                crdt_map_[index][stat.key()] = cur_data;
+                            }
+                            else
+                            {
+                                return false;
+                            }
+                            
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 }
                 else
                 {
+                    const Metadata cur_data
+                    {
+                        sen: txn.start_epoch(),
+                        rna: txn.related_nodes().size(),
+                        csn: txn.txn_id()
+                    };
                     // write intent successfully
-                    crdt_map_[epoch][stat.key()] = txn.txn_id();
+                    crdt_map_[index][stat.key()] = cur_data;
                 }
             }
         }
+        return true;
     }
 
-    bool Server::Validate(const PB::Txn& txn, uint64 epoch)
+    bool Server::ValidateWS(const PB::Txn& txn, uint64 index)
     {
         for (const auto &stat : txn.commands())
         {
             if (stat.type() == PB::OpType::PUT)
             {
-                if (crdt_map_[epoch][stat.key()] == txn.txn_id())
+                if (crdt_map_[index][stat.key()].csn == txn.txn_id())
                 {
                     // don't eliminate
                 }
@@ -213,11 +248,11 @@ namespace taas
     void Server::Run()
     {
         launch_ts_ = GetTime();
-        PB::Txn *txn = new PB::Txn();
         while (!deconstructor_invoked_)
         {
             uint64 start_time = GetTime();
             uint64 cur_epoch = epoch_manager_->GetPhysicalEpoch();
+            uint64 cur_epoch_mod = cur_epoch % thread_num;
             
             // reach max running epoch, exit
             if (cur_epoch == limit_epoch_+1)
@@ -229,35 +264,38 @@ namespace taas
                 break;
             }
             
-            // collect batch txns
+            // start a epoch
             LOG(INFO) << "------ epoch "<< cur_epoch << " start ------";
-            std::vector<PB::Txn> local_txns;
+            if (!local_txns_[cur_epoch_mod].empty())
+            {
+                local_txns_[cur_epoch_mod].clear();
+            }
+            
             while (GetTime() - start_time < epoch_manager_->GetEpochDuration())
             {
-                if (local_txns_[cur_epoch].size() > limit_txns_)
+                if (local_txns_[cur_epoch_mod].size() > limit_txns_)
                 {
+                    // dont receive new txns anymore 
                     usleep(100);
                     continue;
                 }
-                
-                client_->GetTxn(&txn, GenerateTid());
-                txn->set_start_epoch(cur_epoch); // assume all txns are single epoch txn
-                txn->set_end_epoch(cur_epoch);
-                txn->set_status(PB::TxnStatus::PEND);
-                txn->set_start_ts(GetTime());
-                local_txns_[cur_epoch].push_back(*txn);
+                PB::MessageProto *received_txn = nullptr;
+                conn_->GetMessage("proxy", received_txn);
+                received_txn->mutable_single_txn()->set_status(PB::TxnStatus::PEND);
+                received_txn->mutable_single_txn()->set_start_ts(GetTime());
+                thread_pool_->submit(std::bind(&Server::Execute, this, received_txn->mutable_single_txn(), cur_epoch_mod));
             }
-            delete txn;
-
+            epoch_manager_->AddPhysicalEpoch();
             LOG(INFO) << "epoch : " << cur_epoch << " " << local_txns_[cur_epoch].size() << " txns collected, start distribute and merge";
             // process with all other shard peer
             // worker
             thread_pool_->submit(std::bind(&Server::Work, this, cur_epoch));
             LOG(INFO) << "------ epoch "<< cur_epoch << " end ------";
-            epoch_manager_->AddPhysicalEpoch();
+
         }
     }
 
+    // deprecated
     std::vector<PB::MessageProto>* Server::Distribute(const std::vector<PB::Txn>& local_txns, uint64 epoch)
     {
         std::string channel = "Shard_" + std::to_string(epoch);
@@ -270,7 +308,7 @@ namespace taas
                continue;
             uint32 remote_server_id = iter->first;
             PB::MessageProto mp;
-            mp.set_src_node_id(local_server_id_);
+            mp.set_src_node_id(server_id_);
             mp.set_dest_node_id(remote_server_id);
             mp.set_dest_channel(channel);
             mp.set_type(PB::MessageProto_MessageType_BATCHTXNS);
@@ -337,260 +375,94 @@ namespace taas
     }
 
     // send in-region subtxn to all other region's peer node
-    std::vector<PB::MessageProto>*  Server::Replicate(const std::vector<PB::MessageProto>& inregion_subtxns, uint64 epoch)
+    void  Server::Replicate(uint64 epoch)
     {
-        std::string channel = "Replica_" + std::to_string(epoch);
-        conn_->NewChannel(channel);
-        PB::MessageProto* send_msg_ptr = new PB::MessageProto();
-        // exec subtxn's read
-        // union all in-region subtxns to a MessageProto
-        for (size_t i = 0; i < inregion_subtxns.size(); i++)
+        std::string replicate_channel = std::string("replicate_") + std::to_string(epoch);
+        conn_->NewChannel(replicate_channel);
+        // replicate local txn to other replicas
+        PB::MessageProto local_txns_mp;
+        local_txns_mp.set_type(PB::MessageProto::BATCHTXNS);
+        local_txns_mp.mutable_batch_txns()->set_commit_epoch(epoch);
+        uint64 epoch_mod = epoch % thread_num;
+        for (const PB::Txn& txn : local_txns_[epoch_mod])
         {
-            const PB::MessageProto& subtxns = inregion_subtxns.at(i);
-            for (auto &&subtxn : subtxns.batch_txns().txns())
+            local_txns_mp.mutable_batch_txns()->add_txns()->CopyFrom(txn);
+        }
+        for (size_t i = 0; i < config_->replica_num_; i++)
+        {
+            if (i != replica_id_)
             {
-                if (subtxn.status() == PB::TxnStatus::ABORT)
-                    continue;
-                send_msg_ptr->mutable_batch_txns()->add_txns()->CopyFrom(subtxn);
+                local_txns_mp.set_src_node_id(server_id_);
+                local_txns_mp.set_src_channel(replicate_channel);
+                local_txns_mp.set_dest_node_id(i * config_->replica_size_ + parition_id_);
+                local_txns_mp.set_dest_channel(replicate_channel);
+                conn_->Send(local_txns_mp);
             }
         }
-
-        int sent_msg = 0;
-        // send the whole subtxns in region to other replica's counterpart
-        for (std::map<uint32, Node*>::const_iterator iter = config_->all_nodes_.begin(); iter != config_->all_nodes_.end(); iter++)
+        // wait for other replica's broadcast
+        uint32 have_replicated = 1; // iteself
+        PB::MessageProto* msg = nullptr;
+        while (have_replicated < config_->replica_num_)
         {
-            uint32 remote_replica_id = iter->second->replica_id;
-            uint32 remote_partition_id = iter->second->partition_id;
-            uint32 remote_server_id = iter->first;
-            if (remote_replica_id != config_->replica_id_ && remote_partition_id == config_->partition_id_)
+            if (conn_->GetMessage(replicate_channel, msg))
             {
-                // broadcast to all other peer node
-                uint32 remote_server_id = iter->first;
-                PB::MessageProto mp(*send_msg_ptr);
-                mp.set_src_node_id(local_server_id_);
-                mp.set_dest_node_id(remote_server_id);
-                mp.set_dest_channel(channel);
-                mp.set_type(PB::MessageProto_MessageType_BATCHTXNS);
-                conn_->Send(mp);
-                sent_msg ++;
-            }
-        }
-        delete send_msg_ptr;
-        
-        LOG(INFO) << "epoch : " << epoch << " Replicate() have sent " << sent_msg << " msgs and barrier";
-        // barrier : wait for the rest msg from out-region's server
-        int counter = 1; // except itself
-        PB::MessageProto recv_subtxn;
-        std::vector<PB::MessageProto>* outregion_subtxns = new std::vector<PB::MessageProto>();
-        while (counter < config_->replica_num_)
-        {
-            // maybe empty
-            if (conn_->GetMessage(channel, &recv_subtxn))
-            {
-                counter++;
-                outregion_subtxns->push_back(recv_subtxn);
+                for (const PB::Txn& txn : msg->batch_txns().txns())
+                {
+                    remote_txns_[epoch_mod].push_back(txn);
+                }
             }
             else
             {
                 usleep(100);
             }
         }
-        LOG(INFO) << "epoch : " << epoch << " Replicate() barrier end"; 
-        conn_->DeleteChannel(channel);
-        return outregion_subtxns;
     }
 
     // process crdt merge
-    std::vector<PB::Txn>* Server::Merge(const std::vector<PB::MessageProto>& inregion_subtxns, const std::vector<PB::MessageProto>& outregion_subtxns, uint64 epoch)
+    void Server::Merge(uint64 epoch)
     {
-        std::string channel = "Merge_" + std::to_string(epoch);
+        std::string channel = "merge_" + std::to_string(epoch);
         conn_->NewChannel(channel);
-        std::set<uint64> abort_subtxn_set;
         // write intent for local txns and remote txns
-        //  local txns
-        for (auto &&subtxns : inregion_subtxns)
+        uint64 epoch_mod = epoch % thread_num;
+        for (PB::Txn& txn : local_txns_[epoch_mod])
         {
-            for (auto &&subtxn : subtxns.batch_txns().txns())
-            {
-                if (subtxn.status() != PB::TxnStatus::ABORT)
-                    WriteIntent(subtxn, epoch);
-            }
-        }
-        for (auto &&subtxns : outregion_subtxns)
-        {
-            for (auto &&subtxn : subtxns.batch_txns().txns())
-            {
-                WriteIntent(subtxn, epoch);
-            }
-        }
-
-        // prepare reply messages for in-region servers
-        std::map<uint32, PB::MessageProto> batch_replies;
-        for (std::map<uint32, Node*>::const_iterator iter = config_->all_nodes_.begin(); 
-            iter != config_->all_nodes_.end(); ++iter)
-        {
-            // skip out-region nodes
-            int remote_replica = iter->second->replica_id;
-            uint32 remote_server_id = iter->first;
-            if (remote_replica == config_->replica_id_ )
-            {
-                PB::MessageProto mp;
-                mp.set_src_node_id(local_server_id_);
-                mp.set_dest_node_id(remote_server_id);
-                mp.set_dest_channel(channel);
-                mp.set_type(PB::MessageProto_MessageType_BATCHTXNS);
-                batch_replies[remote_server_id] = mp;
-            }
-        }
-        
-        // validate in-region txns 
-        // only responsible for the in-region txn's reply
-        for (auto &&subtxns : inregion_subtxns)
-        {
-            for (auto &&subtxn : subtxns.batch_txns().txns())
-            {
-                if (subtxn.status() == PB::TxnStatus::ABORT)
-                {
-                    abort_subtxn_set.insert(subtxn.txn_id());
-                    for (std::map<uint32, PB::MessageProto>::iterator iter = batch_replies.begin();
-                        iter != batch_replies.end(); ++iter)
-                    {
-                        iter->second.mutable_batch_txns()->add_txns()->CopyFrom(subtxn);
-                    }  
-                    continue;
-                }
-                PB::Txn new_txn(subtxn);
-                uint32 remote_node_id = subtxns.src_node_id();
-                bool validate_res = Validate(subtxn, epoch);
-                if (validate_res)
-                {
-                    new_txn.set_status(PB::COMMIT);
-                    batch_replies[remote_node_id].mutable_batch_txns()->add_txns()->CopyFrom(new_txn);
-                }
-                else
-                {
-                    new_txn.set_status(PB::ABORT);
-                    abort_subtxn_set.insert(subtxn.txn_id());
-                    for (std::map<uint32, PB::MessageProto>::iterator iter = batch_replies.begin();
-                        iter != batch_replies.end(); ++iter)
-                    {
-                        iter->second.mutable_batch_txns()->add_txns()->CopyFrom(new_txn);
-                    }      
-                }
-            }
-        }
-        
-        // validate out-region txns
-        for (auto &&subtxns : outregion_subtxns)
-        {
-            for (auto &&subtxn : subtxns.batch_txns().txns())
-            {
-                PB::Txn new_txn(subtxn);
-                bool validate_res = Validate(subtxn, epoch);
-                // dont need to reply out-region nodes with read results
-                if (!validate_res)
-                {
-                    new_txn.set_status(PB::ABORT);
-                    abort_subtxn_set.insert(new_txn.txn_id());
-                    for (std::map<uint32, PB::MessageProto>::iterator iter = batch_replies.begin();
-                        iter != batch_replies.end(); ++iter)
-                    {
-                        iter->second.mutable_batch_txns()->add_txns()->CopyFrom(new_txn);
-                    } 
-                }
-            }
-        }
-        
-        // send replies messages to all in-region servers
-        int sent_cnt = 0;
-        for (std::map<uint32, PB::MessageProto>::iterator iter = batch_replies.begin();
-            iter != batch_replies.end(); ++iter)
-        {
-            conn_->Send(iter->second);
-            sent_cnt++;
-        }
-        
-        LOG(INFO) << "epoch : " << epoch << " have sent " << sent_cnt << " Merge() msgs and barrier";
-        int recv_msg_cnt = 0;
-        std::vector<PB::MessageProto> recv_replies;
-
-        // barrier : wait for reply msg arrive
-        PB::MessageProto *reply_msg = new PB::MessageProto();
-        while (recv_msg_cnt < config_->replica_size_)
-        {
-            if (conn_->GetMessage(channel, reply_msg))
-            {
-                recv_replies.push_back(*reply_msg);
-                recv_msg_cnt++;
-            }
-            else
-            {
-                usleep(100);
-            }
-        }
-        delete reply_msg;
-        LOG(INFO) << "epoch : " << epoch << " Merge() barrier end"; 
-        // union abort set
-        for (size_t i = 0; i < recv_replies.size(); i++)
-        {
-            for (auto &&subtxn : recv_replies[i].batch_txns().txns())
-            {
-                if (subtxn.status() == PB::TxnStatus::COMMIT)
-                {
-                    // returned read result
-                }
-                else if (subtxn.status() == PB::TxnStatus::ABORT)
-                {
-                    abort_subtxn_set.insert(subtxn.txn_id());
-                }
-            }
-        }
-        
-        // update local txn status
-        for (size_t i = 0; i < local_txns_[epoch].size(); i++)
-        {
-            PB::Txn& txn = local_txns_[epoch][i];
-            if(abort_subtxn_set.count(txn.txn_id()))
+            bool res = WriteIntent(txn, epoch_mod);
+            if (!res)
                 txn.set_status(PB::TxnStatus::ABORT);
-            else
-                txn.set_status(PB::TxnStatus::COMMIT);
         }
-        
-
-        // committed subtxns
-        std::vector<PB::Txn> *committable_subtxns = new std::vector<PB::Txn>();
-        for (auto &&subtxns : inregion_subtxns)
+        for (PB::Txn& txn : remote_txns_[epoch_mod])
         {
-            for (auto &&subtxn : subtxns.batch_txns().txns())
-            {
-                if (abort_subtxn_set.count(subtxn.txn_id()))
-                {
-                    // abort
-                }
-                else
-                {
-                    committable_subtxns->push_back(subtxn);
-                }
-            }            
+            bool res = WriteIntent(txn, epoch_mod);
+            if (!res)
+                txn.set_status(PB::TxnStatus::ABORT);
         }
-
-        for (auto &&subtxns : outregion_subtxns)
+        // wait & write intent for WaitTxns
         {
-            for (auto &&subtxn : subtxns.batch_txns().txns())
+            std::unique_shard<std::mutex> lk(mutex_wait_);
+            for (PB::Txn& txn: wait_txns_)
             {
-                if (abort_subtxn_set.count(subtxn.txn_id()))
-                {
-                    // abort
-                }
-                else
-                {
-                    committable_subtxns->push_back(subtxn);
-                }
+                bool res = WriteIntent(txn, epoch_mod);
+                if (!res)
+                    txn.set_status(PB::TxnStatus::ABORT);
             }
         }
+
+        // validate write set
+        for (const PB::Txn& txn : local_txns_[epoch_mod])
+        {
+            if (txn.status() == PB::ABORT)
+                continue;
+            if (ValidateWS(txn, epoch_mod))
+                commit_txns_[epoch_mod].push_back(txn);
+            else
+                abort_txns_[epoch_mod].push_back(txn);
+        }
+    }
+
+    void Server::ValidateAtomic(uint64 epoch)
+    {
         
-        conn_->DeleteChannel(channel);
-        return committable_subtxns;
     }
 
     bool Server::CheckAtomic(const PB::Txn& txn, bool committed)
@@ -615,7 +487,7 @@ namespace taas
     }
     void Server::PrintStatistic(uint32 epoch)
     {
-        std::string filename = "./report." + UInt32ToString(local_server_id_) + "." + UInt32ToString(epoch);
+        std::string filename = "./report." + UInt32ToString(server_id_) + "." + UInt32ToString(epoch);
         std::ofstream file(filename);
         std::string report;
         uint64 cur_lantency = 0;
@@ -646,41 +518,12 @@ namespace taas
     // worker
     void Server::Work(uint64 epoch)
     {
-        std::vector<std::pair<uint64, uint64>> latencies;
-        std::vector<PB::MessageProto> *inregion_subtxns, *outregion_subtxns;
-        std::vector<PB::Txn> *committable_subtxns;
-        std::vector<PB::Txn> initial_txns(local_txns_[epoch]);
-        // process distribute & collect all in-region subtxns
-        LOG(INFO) << "epoch : " << epoch << " Start Distribute";
-        inregion_subtxns = Distribute(initial_txns, epoch);
-        LOG(INFO) << "epoch : " << epoch << " Distribute Finish";
+        std::vector<std::pair<uint64, uint64>> latencies; // <begin ts, end ts>
         // Exec Read instantly subtxn in shard node
-        for (size_t i = 0; i < inregion_subtxns->size(); i++)
-        {
-            for (size_t j = 0; j < inregion_subtxns->at(i).batch_txns().txns_size(); j++)
-            {
-                PB::Txn* subtxn = inregion_subtxns->at(i).mutable_batch_txns()->mutable_txns(j);
-                subtxn->set_status(PB::TxnStatus::EXEC);
-                ExecRead(subtxn);
-            }
-        }
-        usleep(1000);
-        //validate read-set
-        for (size_t i = 0; i < inregion_subtxns->size(); i++)
-        {
-            for (size_t j = 0; j < inregion_subtxns->at(i).batch_txns().txns_size(); j++)
-            {
-                PB::Txn* subtxn = inregion_subtxns->at(i).mutable_batch_txns()->mutable_txns(j);
-                if(!ValidateReadSet(*subtxn))
-                {
-                    subtxn->set_status(PB::TxnStatus::ABORT);
-                }
-            }
-        }
         // process replicate & collect all out-region subtxns
         LOG(INFO) << "epoch : " << epoch << " Start Replicate";
         // replicate subtxn and share 
-        outregion_subtxns = Replicate(*inregion_subtxns, epoch);
+        Replicate(*inregion_subtxns, epoch);
         // determinstic process merge
         // return value : kvs all will write in db 
         LOG(INFO) << "epoch : " << epoch << " Start Merge";

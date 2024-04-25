@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.6)
 
 project(Rep VERSION 1.0)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 option(CHECK_ATOMIC "check txn atomic" OFF)
@@ -31,7 +31,6 @@ add_executable(client cmain.cc
 add_executable(server smain.cc
       ./server/server.cc
       ./server/epoch.cc
-      ./common/txn.cc
       ./common/common.cc
       ./storage/storage.cc
       ./common/utils.cc

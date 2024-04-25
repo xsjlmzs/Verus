@@ -92,12 +92,13 @@ enum MessageProto_MessageType : int {
   MessageProto_MessageType_HEARTBEAT = 0,
   MessageProto_MessageType_BATCHTXNS = 1,
   MessageProto_MessageType_ABORTTIDS = 2,
+  MessageProto_MessageType_SINGLETXN = 3,
   MessageProto_MessageType_MessageProto_MessageType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   MessageProto_MessageType_MessageProto_MessageType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
 bool MessageProto_MessageType_IsValid(int value);
 constexpr MessageProto_MessageType MessageProto_MessageType_MessageType_MIN = MessageProto_MessageType_HEARTBEAT;
-constexpr MessageProto_MessageType MessageProto_MessageType_MessageType_MAX = MessageProto_MessageType_ABORTTIDS;
+constexpr MessageProto_MessageType MessageProto_MessageType_MessageType_MAX = MessageProto_MessageType_SINGLETXN;
 constexpr int MessageProto_MessageType_MessageType_ARRAYSIZE = MessageProto_MessageType_MessageType_MAX + 1;
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* MessageProto_MessageType_descriptor();
@@ -146,12 +147,13 @@ enum TxnStatus : int {
   EXEC = 1,
   ABORT = 2,
   COMMIT = 3,
+  PRECOMMIT = 4,
   TxnStatus_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   TxnStatus_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
 bool TxnStatus_IsValid(int value);
 constexpr TxnStatus TxnStatus_MIN = PEND;
-constexpr TxnStatus TxnStatus_MAX = COMMIT;
+constexpr TxnStatus TxnStatus_MAX = PRECOMMIT;
 constexpr int TxnStatus_ARRAYSIZE = TxnStatus_MAX + 1;
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* TxnStatus_descriptor();
@@ -624,12 +626,16 @@ class Txn final :
 
   enum : int {
     kCommandsFieldNumber = 4,
+    kRelatedNodesFieldNumber = 5,
+    kReadSetFieldNumber = 10,
+    kWriteSetFieldNumber = 11,
     kTxnIdFieldNumber = 1,
     kStartEpochFieldNumber = 2,
     kEndEpochFieldNumber = 3,
     kStartTsFieldNumber = 8,
     kEndTsFieldNumber = 9,
     kStatusFieldNumber = 7,
+    kReadOnlyFieldNumber = 12,
   };
   // repeated .PB.Command commands = 4;
   int commands_size() const;
@@ -648,6 +654,76 @@ class Txn final :
   ::PB::Command* add_commands();
   const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Command >&
       commands() const;
+
+  // repeated uint32 related_nodes = 5;
+  int related_nodes_size() const;
+  private:
+  int _internal_related_nodes_size() const;
+  public:
+  void clear_related_nodes();
+  private:
+  uint32_t _internal_related_nodes(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+      _internal_related_nodes() const;
+  void _internal_add_related_nodes(uint32_t value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+      _internal_mutable_related_nodes();
+  public:
+  uint32_t related_nodes(int index) const;
+  void set_related_nodes(int index, uint32_t value);
+  void add_related_nodes(uint32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+      related_nodes() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+      mutable_related_nodes();
+
+  // repeated string read_set = 10;
+  int read_set_size() const;
+  private:
+  int _internal_read_set_size() const;
+  public:
+  void clear_read_set();
+  const std::string& read_set(int index) const;
+  std::string* mutable_read_set(int index);
+  void set_read_set(int index, const std::string& value);
+  void set_read_set(int index, std::string&& value);
+  void set_read_set(int index, const char* value);
+  void set_read_set(int index, const char* value, size_t size);
+  std::string* add_read_set();
+  void add_read_set(const std::string& value);
+  void add_read_set(std::string&& value);
+  void add_read_set(const char* value);
+  void add_read_set(const char* value, size_t size);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>& read_set() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>* mutable_read_set();
+  private:
+  const std::string& _internal_read_set(int index) const;
+  std::string* _internal_add_read_set();
+  public:
+
+  // repeated string write_set = 11;
+  int write_set_size() const;
+  private:
+  int _internal_write_set_size() const;
+  public:
+  void clear_write_set();
+  const std::string& write_set(int index) const;
+  std::string* mutable_write_set(int index);
+  void set_write_set(int index, const std::string& value);
+  void set_write_set(int index, std::string&& value);
+  void set_write_set(int index, const char* value);
+  void set_write_set(int index, const char* value, size_t size);
+  std::string* add_write_set();
+  void add_write_set(const std::string& value);
+  void add_write_set(std::string&& value);
+  void add_write_set(const char* value);
+  void add_write_set(const char* value, size_t size);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>& write_set() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>* mutable_write_set();
+  private:
+  const std::string& _internal_write_set(int index) const;
+  std::string* _internal_add_write_set();
+  public:
 
   // uint64 txn_id = 1;
   void clear_txn_id();
@@ -703,6 +779,15 @@ class Txn final :
   void _internal_set_status(::PB::TxnStatus value);
   public:
 
+  // bool read_only = 12;
+  void clear_read_only();
+  bool read_only() const;
+  void set_read_only(bool value);
+  private:
+  bool _internal_read_only() const;
+  void _internal_set_read_only(bool value);
+  public:
+
   // @@protoc_insertion_point(class_scope:PB.Txn)
  private:
   class _Internal;
@@ -711,12 +796,17 @@ class Txn final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Command > commands_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t > related_nodes_;
+  mutable std::atomic<int> _related_nodes_cached_byte_size_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string> read_set_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string> write_set_;
   uint64_t txn_id_;
   uint64_t start_epoch_;
   uint64_t end_epoch_;
   uint64_t start_ts_;
   uint64_t end_ts_;
   int status_;
+  bool read_only_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_message_2eproto;
 };
@@ -1388,6 +1478,7 @@ class MessageProto final :
     kBatchTxns = 21,
     kHeartBeat = 22,
     kAbortTids = 23,
+    kSingleTxn = 24,
     MESSAGE_TYPE_NOT_SET = 0,
   };
 
@@ -1471,6 +1562,8 @@ class MessageProto final :
     MessageProto_MessageType_BATCHTXNS;
   static constexpr MessageType ABORTTIDS =
     MessageProto_MessageType_ABORTTIDS;
+  static constexpr MessageType SINGLETXN =
+    MessageProto_MessageType_SINGLETXN;
   static inline bool MessageType_IsValid(int value) {
     return MessageProto_MessageType_IsValid(value);
   }
@@ -1508,6 +1601,7 @@ class MessageProto final :
     kBatchTxnsFieldNumber = 21,
     kHeartBeatFieldNumber = 22,
     kAbortTidsFieldNumber = 23,
+    kSingleTxnFieldNumber = 24,
   };
   // string src_channel = 12;
   void clear_src_channel();
@@ -1632,6 +1726,24 @@ class MessageProto final :
       ::PB::AbortTids* abort_tids);
   ::PB::AbortTids* unsafe_arena_release_abort_tids();
 
+  // .PB.Txn single_txn = 24;
+  bool has_single_txn() const;
+  private:
+  bool _internal_has_single_txn() const;
+  public:
+  void clear_single_txn();
+  const ::PB::Txn& single_txn() const;
+  PROTOBUF_NODISCARD ::PB::Txn* release_single_txn();
+  ::PB::Txn* mutable_single_txn();
+  void set_allocated_single_txn(::PB::Txn* single_txn);
+  private:
+  const ::PB::Txn& _internal_single_txn() const;
+  ::PB::Txn* _internal_mutable_single_txn();
+  public:
+  void unsafe_arena_set_allocated_single_txn(
+      ::PB::Txn* single_txn);
+  ::PB::Txn* unsafe_arena_release_single_txn();
+
   void clear_message_type();
   MessageTypeCase message_type_case() const;
   // @@protoc_insertion_point(class_scope:PB.MessageProto)
@@ -1640,6 +1752,7 @@ class MessageProto final :
   void set_has_batch_txns();
   void set_has_heart_beat();
   void set_has_abort_tids();
+  void set_has_single_txn();
 
   inline bool has_message_type() const;
   inline void clear_has_message_type();
@@ -1659,6 +1772,7 @@ class MessageProto final :
     ::PB::BatchTxns* batch_txns_;
     ::PB::HeartBeat* heart_beat_;
     ::PB::AbortTids* abort_tids_;
+    ::PB::Txn* single_txn_;
   } message_type_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   uint32_t _oneof_case_[1];
@@ -2143,6 +2257,53 @@ Txn::commands() const {
   return commands_;
 }
 
+// repeated uint32 related_nodes = 5;
+inline int Txn::_internal_related_nodes_size() const {
+  return related_nodes_.size();
+}
+inline int Txn::related_nodes_size() const {
+  return _internal_related_nodes_size();
+}
+inline void Txn::clear_related_nodes() {
+  related_nodes_.Clear();
+}
+inline uint32_t Txn::_internal_related_nodes(int index) const {
+  return related_nodes_.Get(index);
+}
+inline uint32_t Txn::related_nodes(int index) const {
+  // @@protoc_insertion_point(field_get:PB.Txn.related_nodes)
+  return _internal_related_nodes(index);
+}
+inline void Txn::set_related_nodes(int index, uint32_t value) {
+  related_nodes_.Set(index, value);
+  // @@protoc_insertion_point(field_set:PB.Txn.related_nodes)
+}
+inline void Txn::_internal_add_related_nodes(uint32_t value) {
+  related_nodes_.Add(value);
+}
+inline void Txn::add_related_nodes(uint32_t value) {
+  _internal_add_related_nodes(value);
+  // @@protoc_insertion_point(field_add:PB.Txn.related_nodes)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+Txn::_internal_related_nodes() const {
+  return related_nodes_;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+Txn::related_nodes() const {
+  // @@protoc_insertion_point(field_list:PB.Txn.related_nodes)
+  return _internal_related_nodes();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+Txn::_internal_mutable_related_nodes() {
+  return &related_nodes_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+Txn::mutable_related_nodes() {
+  // @@protoc_insertion_point(field_mutable_list:PB.Txn.related_nodes)
+  return _internal_mutable_related_nodes();
+}
+
 // .PB.TxnStatus status = 7;
 inline void Txn::clear_status() {
   status_ = 0;
@@ -2201,6 +2362,176 @@ inline void Txn::_internal_set_end_ts(uint64_t value) {
 inline void Txn::set_end_ts(uint64_t value) {
   _internal_set_end_ts(value);
   // @@protoc_insertion_point(field_set:PB.Txn.end_ts)
+}
+
+// repeated string read_set = 10;
+inline int Txn::_internal_read_set_size() const {
+  return read_set_.size();
+}
+inline int Txn::read_set_size() const {
+  return _internal_read_set_size();
+}
+inline void Txn::clear_read_set() {
+  read_set_.Clear();
+}
+inline std::string* Txn::add_read_set() {
+  std::string* _s = _internal_add_read_set();
+  // @@protoc_insertion_point(field_add_mutable:PB.Txn.read_set)
+  return _s;
+}
+inline const std::string& Txn::_internal_read_set(int index) const {
+  return read_set_.Get(index);
+}
+inline const std::string& Txn::read_set(int index) const {
+  // @@protoc_insertion_point(field_get:PB.Txn.read_set)
+  return _internal_read_set(index);
+}
+inline std::string* Txn::mutable_read_set(int index) {
+  // @@protoc_insertion_point(field_mutable:PB.Txn.read_set)
+  return read_set_.Mutable(index);
+}
+inline void Txn::set_read_set(int index, const std::string& value) {
+  read_set_.Mutable(index)->assign(value);
+  // @@protoc_insertion_point(field_set:PB.Txn.read_set)
+}
+inline void Txn::set_read_set(int index, std::string&& value) {
+  read_set_.Mutable(index)->assign(std::move(value));
+  // @@protoc_insertion_point(field_set:PB.Txn.read_set)
+}
+inline void Txn::set_read_set(int index, const char* value) {
+  GOOGLE_DCHECK(value != nullptr);
+  read_set_.Mutable(index)->assign(value);
+  // @@protoc_insertion_point(field_set_char:PB.Txn.read_set)
+}
+inline void Txn::set_read_set(int index, const char* value, size_t size) {
+  read_set_.Mutable(index)->assign(
+    reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_set_pointer:PB.Txn.read_set)
+}
+inline std::string* Txn::_internal_add_read_set() {
+  return read_set_.Add();
+}
+inline void Txn::add_read_set(const std::string& value) {
+  read_set_.Add()->assign(value);
+  // @@protoc_insertion_point(field_add:PB.Txn.read_set)
+}
+inline void Txn::add_read_set(std::string&& value) {
+  read_set_.Add(std::move(value));
+  // @@protoc_insertion_point(field_add:PB.Txn.read_set)
+}
+inline void Txn::add_read_set(const char* value) {
+  GOOGLE_DCHECK(value != nullptr);
+  read_set_.Add()->assign(value);
+  // @@protoc_insertion_point(field_add_char:PB.Txn.read_set)
+}
+inline void Txn::add_read_set(const char* value, size_t size) {
+  read_set_.Add()->assign(reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_add_pointer:PB.Txn.read_set)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>&
+Txn::read_set() const {
+  // @@protoc_insertion_point(field_list:PB.Txn.read_set)
+  return read_set_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>*
+Txn::mutable_read_set() {
+  // @@protoc_insertion_point(field_mutable_list:PB.Txn.read_set)
+  return &read_set_;
+}
+
+// repeated string write_set = 11;
+inline int Txn::_internal_write_set_size() const {
+  return write_set_.size();
+}
+inline int Txn::write_set_size() const {
+  return _internal_write_set_size();
+}
+inline void Txn::clear_write_set() {
+  write_set_.Clear();
+}
+inline std::string* Txn::add_write_set() {
+  std::string* _s = _internal_add_write_set();
+  // @@protoc_insertion_point(field_add_mutable:PB.Txn.write_set)
+  return _s;
+}
+inline const std::string& Txn::_internal_write_set(int index) const {
+  return write_set_.Get(index);
+}
+inline const std::string& Txn::write_set(int index) const {
+  // @@protoc_insertion_point(field_get:PB.Txn.write_set)
+  return _internal_write_set(index);
+}
+inline std::string* Txn::mutable_write_set(int index) {
+  // @@protoc_insertion_point(field_mutable:PB.Txn.write_set)
+  return write_set_.Mutable(index);
+}
+inline void Txn::set_write_set(int index, const std::string& value) {
+  write_set_.Mutable(index)->assign(value);
+  // @@protoc_insertion_point(field_set:PB.Txn.write_set)
+}
+inline void Txn::set_write_set(int index, std::string&& value) {
+  write_set_.Mutable(index)->assign(std::move(value));
+  // @@protoc_insertion_point(field_set:PB.Txn.write_set)
+}
+inline void Txn::set_write_set(int index, const char* value) {
+  GOOGLE_DCHECK(value != nullptr);
+  write_set_.Mutable(index)->assign(value);
+  // @@protoc_insertion_point(field_set_char:PB.Txn.write_set)
+}
+inline void Txn::set_write_set(int index, const char* value, size_t size) {
+  write_set_.Mutable(index)->assign(
+    reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_set_pointer:PB.Txn.write_set)
+}
+inline std::string* Txn::_internal_add_write_set() {
+  return write_set_.Add();
+}
+inline void Txn::add_write_set(const std::string& value) {
+  write_set_.Add()->assign(value);
+  // @@protoc_insertion_point(field_add:PB.Txn.write_set)
+}
+inline void Txn::add_write_set(std::string&& value) {
+  write_set_.Add(std::move(value));
+  // @@protoc_insertion_point(field_add:PB.Txn.write_set)
+}
+inline void Txn::add_write_set(const char* value) {
+  GOOGLE_DCHECK(value != nullptr);
+  write_set_.Add()->assign(value);
+  // @@protoc_insertion_point(field_add_char:PB.Txn.write_set)
+}
+inline void Txn::add_write_set(const char* value, size_t size) {
+  write_set_.Add()->assign(reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_add_pointer:PB.Txn.write_set)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>&
+Txn::write_set() const {
+  // @@protoc_insertion_point(field_list:PB.Txn.write_set)
+  return write_set_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>*
+Txn::mutable_write_set() {
+  // @@protoc_insertion_point(field_mutable_list:PB.Txn.write_set)
+  return &write_set_;
+}
+
+// bool read_only = 12;
+inline void Txn::clear_read_only() {
+  read_only_ = false;
+}
+inline bool Txn::_internal_read_only() const {
+  return read_only_;
+}
+inline bool Txn::read_only() const {
+  // @@protoc_insertion_point(field_get:PB.Txn.read_only)
+  return _internal_read_only();
+}
+inline void Txn::_internal_set_read_only(bool value) {
+  
+  read_only_ = value;
+}
+inline void Txn::set_read_only(bool value) {
+  _internal_set_read_only(value);
+  // @@protoc_insertion_point(field_set:PB.Txn.read_only)
 }
 
 // -------------------------------------------------------------------
@@ -2909,6 +3240,80 @@ inline ::PB::AbortTids* MessageProto::_internal_mutable_abort_tids() {
 inline ::PB::AbortTids* MessageProto::mutable_abort_tids() {
   ::PB::AbortTids* _msg = _internal_mutable_abort_tids();
   // @@protoc_insertion_point(field_mutable:PB.MessageProto.abort_tids)
+  return _msg;
+}
+
+// .PB.Txn single_txn = 24;
+inline bool MessageProto::_internal_has_single_txn() const {
+  return message_type_case() == kSingleTxn;
+}
+inline bool MessageProto::has_single_txn() const {
+  return _internal_has_single_txn();
+}
+inline void MessageProto::set_has_single_txn() {
+  _oneof_case_[0] = kSingleTxn;
+}
+inline void MessageProto::clear_single_txn() {
+  if (_internal_has_single_txn()) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete message_type_.single_txn_;
+    }
+    clear_has_message_type();
+  }
+}
+inline ::PB::Txn* MessageProto::release_single_txn() {
+  // @@protoc_insertion_point(field_release:PB.MessageProto.single_txn)
+  if (_internal_has_single_txn()) {
+    clear_has_message_type();
+    ::PB::Txn* temp = message_type_.single_txn_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    message_type_.single_txn_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::PB::Txn& MessageProto::_internal_single_txn() const {
+  return _internal_has_single_txn()
+      ? *message_type_.single_txn_
+      : reinterpret_cast< ::PB::Txn&>(::PB::_Txn_default_instance_);
+}
+inline const ::PB::Txn& MessageProto::single_txn() const {
+  // @@protoc_insertion_point(field_get:PB.MessageProto.single_txn)
+  return _internal_single_txn();
+}
+inline ::PB::Txn* MessageProto::unsafe_arena_release_single_txn() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:PB.MessageProto.single_txn)
+  if (_internal_has_single_txn()) {
+    clear_has_message_type();
+    ::PB::Txn* temp = message_type_.single_txn_;
+    message_type_.single_txn_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void MessageProto::unsafe_arena_set_allocated_single_txn(::PB::Txn* single_txn) {
+  clear_message_type();
+  if (single_txn) {
+    set_has_single_txn();
+    message_type_.single_txn_ = single_txn;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:PB.MessageProto.single_txn)
+}
+inline ::PB::Txn* MessageProto::_internal_mutable_single_txn() {
+  if (!_internal_has_single_txn()) {
+    clear_message_type();
+    set_has_single_txn();
+    message_type_.single_txn_ = CreateMaybeMessage< ::PB::Txn >(GetArenaForAllocation());
+  }
+  return message_type_.single_txn_;
+}
+inline ::PB::Txn* MessageProto::mutable_single_txn() {
+  ::PB::Txn* _msg = _internal_mutable_single_txn();
+  // @@protoc_insertion_point(field_mutable:PB.MessageProto.single_txn)
   return _msg;
 }
 
