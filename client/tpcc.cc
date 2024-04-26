@@ -94,7 +94,6 @@ PB::Txn* Tpcc::TpccTxnSP(uint64 txn_id, uint32 part)
 //----------- Create a multi-partition transaction -------------------------
 PB::Txn* Tpcc::TpccTxnMP(uint64 txn_id, uint32 part1, uint32 part2)
 {
-    CHECK(part1 != part2 || config_->replica_size_ == 1);
     PB::Txn* txn = new PB::Txn();
     txn->set_txn_id(txn_id);
 

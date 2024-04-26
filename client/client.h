@@ -12,21 +12,18 @@ class Client
 {
 private:
     std::vector<Node> servers_;
-    zmqpp::context cxt_;
-    zmqpp::socket* client_socket_;
 
     Configuration* config_;
-    uint32 percent_mp_;
+    uint32 mp_percent_;
     Tpcc tpcc;
 
 public:
-    Client(Configuration* config, uint32 mp, uint32 hot_records);
+    Client(Configuration* config, uint32 mtxn_percent, uint32 warehouse);
     ~Client();
 
     void Run();
-
-    void SendClientRequest(const PB::Txn& txn);
     void LoadConfig(std::string filename);
+    void NewTxn(PB::Txn** txn, uint64 txn_id);
 };
 
 

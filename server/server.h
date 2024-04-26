@@ -8,7 +8,6 @@
 #include "common.h"
 #include "epoch.h"
 #include "storage.h"
-#include "client.h"
 #include "thread_pool.h"
 
 namespace taas

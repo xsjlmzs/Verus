@@ -3,8 +3,8 @@
 
 #include "client.h"
 
-Client::Client(Configuration* config, uint32 mp, uint32 hot_records)
-    : config_(config), percent_mp_(mp), tpcc(config, hot_records)
+Client::Client(Configuration* config, uint32 mp, uint32 warehouse)
+    : config_(config), mp_percent_(mp), tpcc(config, warehouse)
 {
     
 }
@@ -98,49 +98,12 @@ void Client::Run()
         if (!in_txn)
         {
             PB::Txn&& txn = CmdsToTxn(commands);
-            SendClientRequest(txn);
+            // send txn
+            // 
             commands.clear();
         }
     }
     
-}
-
-void Client::SendClientRequest(const PB::Txn& txn)
-{
-    PB::ClientRequest cr;
-    cr.mutable_txn()->CopyFrom(txn);
-    
-    std::string str_cr;
-    cr.SerializeToString(&str_cr);
-
-    // default server is id = 0
-    zmqpp::endpoint_t target_endpoint = servers_[0].GetSocket();
-
-    // XLOGI("target server: %s, msg content: %s\n",target_endpoint.c_str(), str_txn.c_str());
-
-    client_socket_->connect("tcp://" + target_endpoint);
-
-    zmqpp::message req;
-    req << str_cr;
-    client_socket_->send(req);
-    
-    // receive response
-    LOG(INFO) << "waiting for response";
-    zmqpp::message resp;
-    client_socket_->receive(resp);
-    std::string str_resp;
-    resp >> str_resp;
-    PB::ClientReply reply;
-    reply.ParseFromString(str_resp);
-
-    if (reply.exec_res())
-    {
-        std::cout << "operate successfully" << std::endl;
-    }
-    for (auto &&i : reply.query_set())
-    {
-        std::cout << i << std::endl;
-    }
 }
 
 void Client::LoadConfig(std::string filename)
@@ -173,6 +136,23 @@ void Client::LoadConfig(std::string filename)
             node.host = ip; node.port = port;
             servers_.push_back(node);
         }
+    }
+}
+
+void Client::NewTxn(PB::Txn** txn, uint64 txn_id)
+{
+    uint32 parition_id = uint32(rand())%config_->replica_size_;
+    if (config_->replica_size_ > 1 && (uint32)(rand() % 100) < mp_percent_)
+    {
+        uint64 other;
+        do {
+            other = (uint32) (rand() % config_->replica_size_);
+        } while (other == parition_id);
+        *txn = tpcc.TpccTxnMP(txn_id, parition_id, other);
+    }
+    else
+    {
+        *txn = tpcc.TpccTxnSP(txn_id,parition_id); // attention!
     }
 }
 

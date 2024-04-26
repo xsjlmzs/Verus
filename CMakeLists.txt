@@ -33,8 +33,13 @@ add_executable(server smain.cc
       ./server/epoch.cc
       ./common/common.cc
       ./storage/storage.cc
-      ./common/utils.cc
+      ./common/utils.cc)
+
+add_executable(proxy pmain.cc
+      ./proxy/proxy.cc
       ./client/client.cc
+      ./common/common.cc
+      ./common/utils.cc
       ./client/tpcc.cc)
 
 target_include_directories(client PRIVATE
@@ -46,12 +51,19 @@ target_include_directories(server PRIVATE
       ${PROJECT_SOURCE_DIR}/proto/include
       ${PROJECT_SOURCE_DIR}/server
       ${PROJECT_SOURCE_DIR}/common
-      ${PROJECT_SOURCE_DIR}/storage
+      ${PROJECT_SOURCE_DIR}/storage)
+
+target_include_directories(proxy PRIVATE
+      ${PROJECT_SOURCE_DIR}/proto/include 
+      ${PROJECT_SOURCE_DIR}/proxy
+      ${PROJECT_SOURCE_DIR}/common
       ${PROJECT_SOURCE_DIR}/client)
 
 target_link_libraries(client PRIVATE Proto pthread zmqpp zmq glog)
 
 target_link_libraries(server PRIVATE Proto pthread zmqpp zmq glog)
+
+target_link_libraries(proxy PRIVATE Proto pthread zmqpp zmq glog)
 
 # 编译器警告信息flag
 set(gcc_like_cxx "$<COMPILE_LANG_AND_ID:CXX,ARMClang,AppleClang,Clang,GNU,LCC>")
