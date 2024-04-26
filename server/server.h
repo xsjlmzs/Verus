@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <unordered_set>
 
 #include "common.h"
 #include "epoch.h"
@@ -38,18 +39,40 @@ namespace taas
             uint64 rna;
             uint64 csn;
         };
+        // for validate atomic
+        struct TxnRes
+        {
+            uint64 txn_id;
+            bool commit = false;
+        };
         
         std::vector<std::map<std::string, Metadata> > crdt_map_;
         // local txn <epoch-id, txns>
-        std::vector<std::mutex> mutexes_local_txns_;
+        std::mutex mutexes_local_txns_[32];
         std::vector<std::vector<PB::Txn> > local_txns_;
         std::vector<std::vector<PB::Txn> > remote_txns_;
         // WaitTxns
         std::shared_mutex mutex_wait_;
         std::vector<PB::Txn> wait_txns_;
         // CommitTxns & AbortTxns
-        std::vector<std::vector<PB::Txn> > commit_txns_;
-        std::vector<std::vector<PB::Txn> > abort_txns_;
+        // struct Hash
+        // {
+        //     uint64 operator()(const PB::Txn& txn) const
+        //     {
+        //         return txn.txn_id();
+        //     }
+        // };
+        // struct Equal
+        // {
+        //     bool operator()(const PB::Txn& txn1,const PB::Txn& txn2) const
+        //     {
+        //         return txn1.txn_id() == txn2.txn_id();
+        //     }
+        // };
+        
+        
+        std::vector<std::unordered_map<uint64, PB::Txn> > commit_txns_;
+        std::vector<std::unordered_map<uint64, PB::Txn> > abort_txns_;
 
         uint32 server_id_;
         uint32 parition_id_;
@@ -57,11 +80,11 @@ namespace taas
         Isolation isolation;
 
         void HeartbeatAllServers();
-        void BatchWrite(const std::vector<PB::Txn>* txns);
         void Execute(PB::Txn* txn, uint64  cur_epoch_mod);
         bool WriteIntent(const PB::Txn& txn, uint64 epoch);
         bool ValidateWS(const PB::Txn& txn, uint64 epoch);
         void ValidateAtomic(uint64 epoch);
+        void EpochWrite(uint64 epoch);
 
         bool CheckAtomic(const PB::Txn& txn, bool committed);
         void PrintStatistic(uint32 epoch);
@@ -82,7 +105,7 @@ namespace taas
         Server(Configuration *config, Connection *conn, uint32 node_id);
         ~Server();
         void Run();
-        std::vector<PB::MessageProto>* Distribute(const std::vector<PB::Txn>& local_txns, uint64 epoch);
+        // std::vector<PB::MessageProto>* Distribute(const std::vector<PB::Txn>& local_txns, uint64 epoch);
         void Replicate(uint64 epoch);
         bool ValidateReadSet(const PB::Txn& txn);
         void Merge(uint64 epoch);

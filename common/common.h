@@ -85,7 +85,7 @@ private:
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;
 public:
-    explicit Connection(Configuration* config);
+    explicit Connection(Configuration* config, uint32 node_id);
     ~Connection();
 
     void Run();

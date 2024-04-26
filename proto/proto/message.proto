@@ -44,13 +44,18 @@ message Txn {
 
     repeated Command commands = 4;
     repeated uint32 related_nodes = 5;
+    repeated uint32 received_nodes = 6;
     TxnStatus status = 7;
 
     uint64 start_ts = 8;
     uint64 end_ts = 9;
 
     repeated string read_set = 10;
-    repeated string write_set = 11;
+    message KeyValue {
+        string key = 1;
+        string value = 2;
+    }
+    repeated KeyValue write_set = 11;
 
     bool read_only = 12;
 }
@@ -73,11 +78,15 @@ message HeartBeat {
 
 }
 
-message AbortTids {
+message CATxnIds {
 
-    uint64 start_epoch = 1;
+    message CATxnId {
+        uint64 txn_id = 1;
+        TxnStatus txn_status = 2;
+    }
 
-    repeated uint64 txn_ids = 2;
+    uint64 epoch = 1;
+    repeated CATxnId ca_txn_ids = 2;
 }
 
 message MessageProto {
@@ -85,7 +94,7 @@ message MessageProto {
     enum MessageType {
         HEARTBEAT = 0;
         BATCHTXNS = 1;
-        ABORTTIDS = 2;
+        CATXNIDS = 2;
         SINGLETXN = 3;
     }
     
@@ -102,8 +111,8 @@ message MessageProto {
     oneof message_type {
         BatchTxns batch_txns = 21;
         HeartBeat heart_beat = 22;
-        AbortTids abort_tids = 23;
-        Txn       single_txn = 24;
+        Txn       single_txn = 23;
+        CATxnIds  txn_result = 24;
     }
 
     string debug_info = 31;

@@ -20,7 +20,7 @@ namespace taas
         thread_pool_->init();
         // init 
         crdt_map_.resize(thread_num);
-        mutexes_local_txns_.resize(thread_num);
+        // mutexes_local_txns_.resize(thread_num);
         local_txns_.resize(thread_num);
         remote_txns_.resize(thread_num);
         commit_txns_.resize(thread_num);
@@ -55,7 +55,10 @@ namespace taas
             }
             else if (stat.type() == PB::OpType::PUT)
             {
-                txn->add_write_set(stat.value());
+
+                PB::Txn::KeyValue* kv = txn->add_write_set();
+                kv->set_key(stat.key());
+                kv->set_value(stat.value());
             }
         }
         storage_->UnlockRead();
@@ -64,28 +67,6 @@ namespace taas
         txn->set_status(PB::TxnStatus::PRECOMMIT);
         std::unique_lock<std::mutex> lk(mutexes_local_txns_[cur_epoch_mod]);
         local_txns_[cur_epoch_mod].push_back(*txn);
-    }
-
-    void Server::BatchWrite(const std::vector<PB::Txn>* txns)
-    {
-        for (auto &&txn : *txns)
-        {
-            if (!txn.read_only())
-            {
-                storage_->LockWrite();
-            }
-            for (auto &&cmd : txn.commands())
-            {
-                if (cmd.type() == PB::OpType::PUT)
-                {
-                    storage_->put(cmd.key(), cmd.value());
-                }
-            }
-            if (!txn.read_only())
-            {
-                storage_->UnlockWrite();
-            }
-        }
     }
 
     void Server::HeartbeatAllServers()
@@ -134,7 +115,7 @@ namespace taas
                     const Metadata cur_data
                     {
                         sen: txn.start_epoch(),
-                        rna: txn.related_nodes().size(),
+                        rna: (uint64)txn.related_nodes_size(),
                         csn: txn.txn_id()
                     };
                     if (prev_data.sen < txn.start_epoch())
@@ -174,7 +155,7 @@ namespace taas
                     const Metadata cur_data
                     {
                         sen: txn.start_epoch(),
-                        rna: txn.related_nodes().size(),
+                        rna: (uint64)txn.related_nodes_size(),
                         csn: txn.txn_id()
                     };
                     // write intent successfully
@@ -295,84 +276,84 @@ namespace taas
         }
     }
 
-    // deprecated
-    std::vector<PB::MessageProto>* Server::Distribute(const std::vector<PB::Txn>& local_txns, uint64 epoch)
-    {
-        std::string channel = "Shard_" + std::to_string(epoch);
-        conn_->NewChannel(channel);
-        std::map<uint32, PB::MessageProto> batch_subtxns;
-        // prepare msg for sending to in region nodes
-        for (std::map<uint32, Node*>::const_iterator iter = config_->all_nodes_.begin(); iter != config_->all_nodes_.end(); iter++)
-        {
-            if (iter->second->replica_id != config_->replica_id_)
-               continue;
-            uint32 remote_server_id = iter->first;
-            PB::MessageProto mp;
-            mp.set_src_node_id(server_id_);
-            mp.set_dest_node_id(remote_server_id);
-            mp.set_dest_channel(channel);
-            mp.set_type(PB::MessageProto_MessageType_BATCHTXNS);
-            batch_subtxns[remote_server_id] = mp;
-        }
+    // // deprecated
+    // std::vector<PB::MessageProto>* Server::Distribute(const std::vector<PB::Txn>& local_txns, uint64 epoch)
+    // {
+    //     std::string channel = "Shard_" + std::to_string(epoch);
+    //     conn_->NewChannel(channel);
+    //     std::map<uint32, PB::MessageProto> batch_subtxns;
+    //     // prepare msg for sending to in region nodes
+    //     for (std::map<uint32, Node*>::const_iterator iter = config_->all_nodes_.begin(); iter != config_->all_nodes_.end(); iter++)
+    //     {
+    //         if (iter->second->replica_id != config_->replica_id_)
+    //            continue;
+    //         uint32 remote_server_id = iter->first;
+    //         PB::MessageProto mp;
+    //         mp.set_src_node_id(server_id_);
+    //         mp.set_dest_node_id(remote_server_id);
+    //         mp.set_dest_channel(channel);
+    //         mp.set_type(PB::MessageProto_MessageType_BATCHTXNS);
+    //         batch_subtxns[remote_server_id] = mp;
+    //     }
 
-        // split txn into subtxns
-        for (size_t i = 0; i < local_txns.size(); i++)
-        {
-            const PB::Txn& txn = local_txns.at(i);
-            std::map<uint32, PB::Txn> subtxns; // <node_id, subtxn>
-            for (size_t j = 0; j < txn.commands_size(); j++)
-            {
-                const PB::Command& stat = txn.commands(j);
-                // find responsible node for the key in region
-                int partition_id = config_->LookupPartition(stat.key());
-                uint32 machine_id = config_->LookupMachineID(partition_id);
-                if (subtxns.count(machine_id) == 0)
-                {
-                    PB::Txn subtxn;
-                    subtxn.set_txn_id(txn.txn_id());
-                    subtxn.set_start_epoch(txn.start_epoch());
-                    subtxn.set_status(PB::TxnStatus::PEND);
-                    subtxns[machine_id] = subtxn;
-                }
-                subtxns[machine_id].add_commands()->CopyFrom(stat);
-            }
+    //     // split txn into subtxns
+    //     for (size_t i = 0; i < local_txns.size(); i++)
+    //     {
+    //         const PB::Txn& txn = local_txns.at(i);
+    //         std::map<uint32, PB::Txn> subtxns; // <node_id, subtxn>
+    //         for (size_t j = 0; j < txn.commands_size(); j++)
+    //         {
+    //             const PB::Command& stat = txn.commands(j);
+    //             // find responsible node for the key in region
+    //             int partition_id = config_->LookupPartition(stat.key());
+    //             uint32 machine_id = config_->LookupMachineID(partition_id);
+    //             if (subtxns.count(machine_id) == 0)
+    //             {
+    //                 PB::Txn subtxn;
+    //                 subtxn.set_txn_id(txn.txn_id());
+    //                 subtxn.set_start_epoch(txn.start_epoch());
+    //                 subtxn.set_status(PB::TxnStatus::PEND);
+    //                 subtxns[machine_id] = subtxn;
+    //             }
+    //             subtxns[machine_id].add_commands()->CopyFrom(stat);
+    //         }
 
-            // compile subtxns to batch
-            for(std::map<uint32, PB::Txn>::iterator iter = subtxns.begin(); iter != subtxns.end(); ++iter)
-            {
-                uint32 remote_server_id = iter->first;
-                const PB::Txn& subtxn = iter->second;
-                batch_subtxns[remote_server_id].mutable_batch_txns()->add_txns()->CopyFrom(subtxn);
-            }   
-        }
+    //         // compile subtxns to batch
+    //         for(std::map<uint32, PB::Txn>::iterator iter = subtxns.begin(); iter != subtxns.end(); ++iter)
+    //         {
+    //             uint32 remote_server_id = iter->first;
+    //             const PB::Txn& subtxn = iter->second;
+    //             batch_subtxns[remote_server_id].mutable_batch_txns()->add_txns()->CopyFrom(subtxn);
+    //         }   
+    //     }
 
-        // send batch_subtxns to all in-region peers
-        for (std::map<uint32, PB::MessageProto>::iterator iter = batch_subtxns.begin(); iter != batch_subtxns.end(); ++iter)
-        {
-            // iter->second.set_debug_info(std::to_string(epoch));
-            conn_->Send(iter->second);
-        }
-        LOG(INFO) << "epoch : " << epoch << " have sent " << batch_subtxns.size() << " Distribute() msgs and barrier";
-        // barrier : wait for all other msg arrive
-        int recv_msg_cnt = 0;
-        PB::MessageProto recv_subtxn;
-        std::vector<PB::MessageProto>* inregion_subtxns = new std::vector<PB::MessageProto>();
-        while (recv_msg_cnt < config_->replica_size_)
-        {
-            if(conn_->GetMessage(channel, &recv_subtxn))
-            {
-                recv_msg_cnt++;
-                inregion_subtxns->push_back(recv_subtxn);
-            }
-            else
-            {
-                usleep(100);
-            }
-        }
-        LOG(INFO) << "epoch : " << epoch << " Distribute() barrier end"; 
-        conn_->DeleteChannel(channel);
-        return inregion_subtxns;
-    }
+    //     // send batch_subtxns to all in-region peers
+    //     for (std::map<uint32, PB::MessageProto>::iterator iter = batch_subtxns.begin(); iter != batch_subtxns.end(); ++iter)
+    //     {
+    //         // iter->second.set_debug_info(std::to_string(epoch));
+    //         conn_->Send(iter->second);
+    //     }
+    //     LOG(INFO) << "epoch : " << epoch << " have sent " << batch_subtxns.size() << " Distribute() msgs and barrier";
+    //     // barrier : wait for all other msg arrive
+    //     int recv_msg_cnt = 0;
+    //     PB::MessageProto recv_subtxn;
+    //     std::vector<PB::MessageProto>* inregion_subtxns = new std::vector<PB::MessageProto>();
+    //     while (recv_msg_cnt < config_->replica_size_)
+    //     {
+    //         if(conn_->GetMessage(channel, &recv_subtxn))
+    //         {
+    //             recv_msg_cnt++;
+    //             inregion_subtxns->push_back(recv_subtxn);
+    //         }
+    //         else
+    //         {
+    //             usleep(100);
+    //         }
+    //     }
+    //     LOG(INFO) << "epoch : " << epoch << " Distribute() barrier end"; 
+    //     conn_->DeleteChannel(channel);
+    //     return inregion_subtxns;
+    // }
 
     // send in-region subtxn to all other region's peer node
     void  Server::Replicate(uint64 epoch)
@@ -439,7 +420,7 @@ namespace taas
         }
         // wait & write intent for WaitTxns
         {
-            std::unique_shard<std::mutex> lk(mutex_wait_);
+            std::shared_lock<std::shared_mutex> lk(mutex_wait_);
             for (PB::Txn& txn: wait_txns_)
             {
                 bool res = WriteIntent(txn, epoch_mod);
@@ -449,19 +430,143 @@ namespace taas
         }
 
         // validate write set
-        for (const PB::Txn& txn : local_txns_[epoch_mod])
+        for (PB::Txn& txn : local_txns_[epoch_mod])
         {
             if (txn.status() == PB::ABORT)
+            {
+                abort_txns_[epoch_mod][txn.txn_id()] = txn;
                 continue;
+            }
             if (ValidateWS(txn, epoch_mod))
-                commit_txns_[epoch_mod].push_back(txn);
+            {
+                txn.set_status(PB::TxnStatus::COMMIT);
+                commit_txns_[epoch_mod][txn.txn_id()] = txn;
+            }
             else
-                abort_txns_[epoch_mod].push_back(txn);
+            {
+                txn.set_status(PB::TxnStatus::ABORT);
+                abort_txns_[epoch_mod][txn.txn_id()] = txn;
+            }
         }
     }
 
     void Server::ValidateAtomic(uint64 epoch)
     {
+        uint64 epoch_mod = epoch % thread_num;
+        std::vector<std::vector<TxnRes> > send_buf;
+        send_buf.resize(config_->all_nodes_.size());
+        // arrange distributed txn's result
+        for (const auto& kv : commit_txns_[epoch_mod])
+        {
+            const PB::Txn& txn = kv.second;
+            if (txn.related_nodes().size() > 1) // distributed txn
+            {
+                for (size_t i = 0; i < txn.related_nodes().size(); i++)
+                {
+                    if (txn.related_nodes(i) != server_id_)
+                    {
+                        send_buf[txn.related_nodes(i)].push_back(TxnRes{txn.txn_id(), true});
+                    }
+                }
+            }
+        }
+        for (const auto& kv : abort_txns_[epoch_mod])
+        {
+            const PB::Txn& txn = kv.second;
+            if (txn.related_nodes().size() > 1) // distributed txn
+            {
+                for (size_t i = 0; i < txn.related_nodes().size(); i++)
+                {
+                    send_buf[txn.related_nodes(i)].push_back(TxnRes{txn.txn_id(), false});
+                }
+            }
+        }
+        
+        // send all txn's result
+        std::string channel = "validate_" + std::to_string(epoch);
+        int related_nodes_size = 0;
+        for (size_t i = 0; i < send_buf.size(); i++)
+        {
+            if (!send_buf[i].empty())
+            {
+                related_nodes_size ++;
+                PB::MessageProto mp;
+                mp.set_type(PB::MessageProto_MessageType_CATXNIDS);
+                mp.set_src_node_id(server_id_);
+                mp.set_src_channel(channel);
+                mp.set_dest_node_id(i);
+                mp.set_dest_channel(channel);
+                for (const TxnRes &txn_res : send_buf[i])
+                {
+                    PB::CATxnIds::CATxnId txnres_pb;
+                    txnres_pb.set_txn_id(txn_res.txn_id);
+                    txnres_pb.set_txn_status(txn_res.commit ? PB::TxnStatus::COMMIT : PB::TxnStatus::ABORT);
+                    mp.mutable_txn_result()->add_ca_txn_ids()->CopyFrom(txnres_pb);
+                }
+                conn_->Send(mp);
+            }
+        }
+
+        // receive related nodes's msg
+        int received_nodes_size = 0;
+        PB::MessageProto* msg = nullptr;
+        while (received_nodes_size < related_nodes_size)
+        {
+            if (conn_->GetMessage(channel, msg))
+            {
+                received_nodes_size ++;
+                for (size_t i = 0; i < msg->txn_result().ca_txn_ids().size(); i++)
+                {
+                    uint64 txn_id = msg->txn_result().ca_txn_ids(i).txn_id();
+                    bool commit = msg->txn_result().ca_txn_ids(i).txn_status() == PB::TxnStatus::COMMIT ? true : false;
+                    auto iter = commit_txns_[epoch_mod].find(txn_id);
+                    if (iter == commit_txns_[epoch_mod].end())
+                        continue;
+                    if (commit)
+                        iter->second.mutable_received_nodes()->Add(msg->src_node_id());
+                    else
+                        iter->second.set_status(PB::TxnStatus::ABORT);
+                }
+            }
+        }
+
+        // process waiting txns
+        for (const auto &kv : commit_txns_[epoch_mod])
+        {
+            const PB::Txn& txn = kv.second;
+            if (txn.status() != PB::TxnStatus::ABORT)
+            {
+                if (txn.received_nodes_size() < txn.related_nodes_size())
+                {
+                    std::unique_lock<std::shared_mutex> lk(mutex_wait_);
+                    wait_txns_.push_back(txn);
+                }
+            }
+        }
+    }
+
+    void Server::EpochWrite(uint64 epoch)
+    {
+        // wait until last epoch's write completed
+        {
+            std::unique_lock<std::mutex> lk(cv_mutex_);
+            cv_.wait(lk, [this, epoch]{return this->epoch_manager_->GetCommittedEpoch() == epoch-1; });
+            lk.unlock();
+        }
+        uint64 epoch_mod = epoch % thread_num;
+        for (const auto &kv : commit_txns_[epoch_mod])
+        {
+            const PB::Txn& txn = kv.second;
+            if (txn.status() == PB::TxnStatus::COMMIT && !txn.read_only())
+            {
+                storage_->LockWrite();
+                for (size_t i = 0; i < txn.write_set_size(); i++)
+                {
+                    storage_->put(txn.write_set(i).key(), txn.write_set(i).value());
+                }
+                storage_->UnlockWrite();
+            }
+        }
         
     }
 
@@ -523,26 +628,17 @@ namespace taas
         // process replicate & collect all out-region subtxns
         LOG(INFO) << "epoch : " << epoch << " Start Replicate";
         // replicate subtxn and share 
-        Replicate(*inregion_subtxns, epoch);
+        Replicate(epoch);
         // determinstic process merge
         // return value : kvs all will write in db 
         LOG(INFO) << "epoch : " << epoch << " Start Merge";
-        committable_subtxns = Merge(*inregion_subtxns, *outregion_subtxns, epoch);
+        Merge( epoch);
         LOG(INFO) << "epoch : " << epoch << " Merge Finish";
         // atomic batch write in
         for (size_t i = 0; i < local_txns_[epoch].size(); i++)
             local_txns_[epoch][i].set_end_ts(GetTime());
         
         PrintStatistic(epoch);
-        // wait for complete of lastest epoch
-        {
-            std::unique_lock<std::mutex> lk(cv_mutex_);
-            cv_.wait(lk, [this, epoch]{return this->epoch_manager_->GetCommittedEpoch() == epoch-1; });
-            lk.unlock();
-        }
-        // atomic write in
-        storage_->LockWrite();
-        BatchWrite(committable_subtxns);
         // Check Correctness
         #ifdef CHECK_ATOMIC
         std::set<uint64> committed_tid_set;
@@ -577,12 +673,9 @@ namespace taas
         if (!atomic_test)
             LOG(ERROR) << "epoch : " << epoch << " cant pass the subtxn's atomic test";   
         #endif
-        storage_->UnlockWrite();
 
         epoch_manager_->AddCommittedEpoch();
         cv_.notify_all();
-        
-        delete inregion_subtxns, outregion_subtxns, committable_subtxns;
     }
 
     void Server::Join()

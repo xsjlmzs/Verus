@@ -47,12 +47,15 @@ struct TableStruct_message_2eproto {
 };
 extern const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_message_2eproto;
 namespace PB {
-class AbortTids;
-struct AbortTidsDefaultTypeInternal;
-extern AbortTidsDefaultTypeInternal _AbortTids_default_instance_;
 class BatchTxns;
 struct BatchTxnsDefaultTypeInternal;
 extern BatchTxnsDefaultTypeInternal _BatchTxns_default_instance_;
+class CATxnIds;
+struct CATxnIdsDefaultTypeInternal;
+extern CATxnIdsDefaultTypeInternal _CATxnIds_default_instance_;
+class CATxnIds_CATxnId;
+struct CATxnIds_CATxnIdDefaultTypeInternal;
+extern CATxnIds_CATxnIdDefaultTypeInternal _CATxnIds_CATxnId_default_instance_;
 class ClientReply;
 struct ClientReplyDefaultTypeInternal;
 extern ClientReplyDefaultTypeInternal _ClientReply_default_instance_;
@@ -74,10 +77,14 @@ extern NodeDefaultTypeInternal _Node_default_instance_;
 class Txn;
 struct TxnDefaultTypeInternal;
 extern TxnDefaultTypeInternal _Txn_default_instance_;
+class Txn_KeyValue;
+struct Txn_KeyValueDefaultTypeInternal;
+extern Txn_KeyValueDefaultTypeInternal _Txn_KeyValue_default_instance_;
 }  // namespace PB
 PROTOBUF_NAMESPACE_OPEN
-template<> ::PB::AbortTids* Arena::CreateMaybeMessage<::PB::AbortTids>(Arena*);
 template<> ::PB::BatchTxns* Arena::CreateMaybeMessage<::PB::BatchTxns>(Arena*);
+template<> ::PB::CATxnIds* Arena::CreateMaybeMessage<::PB::CATxnIds>(Arena*);
+template<> ::PB::CATxnIds_CATxnId* Arena::CreateMaybeMessage<::PB::CATxnIds_CATxnId>(Arena*);
 template<> ::PB::ClientReply* Arena::CreateMaybeMessage<::PB::ClientReply>(Arena*);
 template<> ::PB::ClientRequest* Arena::CreateMaybeMessage<::PB::ClientRequest>(Arena*);
 template<> ::PB::Command* Arena::CreateMaybeMessage<::PB::Command>(Arena*);
@@ -85,13 +92,14 @@ template<> ::PB::HeartBeat* Arena::CreateMaybeMessage<::PB::HeartBeat>(Arena*);
 template<> ::PB::MessageProto* Arena::CreateMaybeMessage<::PB::MessageProto>(Arena*);
 template<> ::PB::Node* Arena::CreateMaybeMessage<::PB::Node>(Arena*);
 template<> ::PB::Txn* Arena::CreateMaybeMessage<::PB::Txn>(Arena*);
+template<> ::PB::Txn_KeyValue* Arena::CreateMaybeMessage<::PB::Txn_KeyValue>(Arena*);
 PROTOBUF_NAMESPACE_CLOSE
 namespace PB {
 
 enum MessageProto_MessageType : int {
   MessageProto_MessageType_HEARTBEAT = 0,
   MessageProto_MessageType_BATCHTXNS = 1,
-  MessageProto_MessageType_ABORTTIDS = 2,
+  MessageProto_MessageType_CATXNIDS = 2,
   MessageProto_MessageType_SINGLETXN = 3,
   MessageProto_MessageType_MessageProto_MessageType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   MessageProto_MessageType_MessageProto_MessageType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
@@ -506,6 +514,170 @@ class Command final :
 };
 // -------------------------------------------------------------------
 
+class Txn_KeyValue final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:PB.Txn.KeyValue) */ {
+ public:
+  inline Txn_KeyValue() : Txn_KeyValue(nullptr) {}
+  ~Txn_KeyValue() override;
+  explicit PROTOBUF_CONSTEXPR Txn_KeyValue(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  Txn_KeyValue(const Txn_KeyValue& from);
+  Txn_KeyValue(Txn_KeyValue&& from) noexcept
+    : Txn_KeyValue() {
+    *this = ::std::move(from);
+  }
+
+  inline Txn_KeyValue& operator=(const Txn_KeyValue& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline Txn_KeyValue& operator=(Txn_KeyValue&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const Txn_KeyValue& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const Txn_KeyValue* internal_default_instance() {
+    return reinterpret_cast<const Txn_KeyValue*>(
+               &_Txn_KeyValue_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    2;
+
+  friend void swap(Txn_KeyValue& a, Txn_KeyValue& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(Txn_KeyValue* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(Txn_KeyValue* other) {
+    if (other == this) return;
+    GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  Txn_KeyValue* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<Txn_KeyValue>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const Txn_KeyValue& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom(const Txn_KeyValue& from);
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to, const ::PROTOBUF_NAMESPACE_ID::Message& from);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  uint8_t* _InternalSerialize(
+      uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _cached_size_.Get(); }
+
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(Txn_KeyValue* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "PB.Txn.KeyValue";
+  }
+  protected:
+  explicit Txn_KeyValue(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                       bool is_message_owned = false);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kKeyFieldNumber = 1,
+    kValueFieldNumber = 2,
+  };
+  // string key = 1;
+  void clear_key();
+  const std::string& key() const;
+  template <typename ArgT0 = const std::string&, typename... ArgT>
+  void set_key(ArgT0&& arg0, ArgT... args);
+  std::string* mutable_key();
+  PROTOBUF_NODISCARD std::string* release_key();
+  void set_allocated_key(std::string* key);
+  private:
+  const std::string& _internal_key() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_key(const std::string& value);
+  std::string* _internal_mutable_key();
+  public:
+
+  // string value = 2;
+  void clear_value();
+  const std::string& value() const;
+  template <typename ArgT0 = const std::string&, typename... ArgT>
+  void set_value(ArgT0&& arg0, ArgT... args);
+  std::string* mutable_value();
+  PROTOBUF_NODISCARD std::string* release_value();
+  void set_allocated_value(std::string* value);
+  private:
+  const std::string& _internal_value() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_value(const std::string& value);
+  std::string* _internal_mutable_value();
+  public:
+
+  // @@protoc_insertion_point(class_scope:PB.Txn.KeyValue)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr key_;
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr value_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_message_2eproto;
+};
+// -------------------------------------------------------------------
+
 class Txn final :
     public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:PB.Txn) */ {
  public:
@@ -554,7 +726,7 @@ class Txn final :
                &_Txn_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    2;
+    3;
 
   friend void swap(Txn& a, Txn& b) {
     a.Swap(&b);
@@ -622,11 +794,14 @@ class Txn final :
 
   // nested types ----------------------------------------------------
 
+  typedef Txn_KeyValue KeyValue;
+
   // accessors -------------------------------------------------------
 
   enum : int {
     kCommandsFieldNumber = 4,
     kRelatedNodesFieldNumber = 5,
+    kReceivedNodesFieldNumber = 6,
     kReadSetFieldNumber = 10,
     kWriteSetFieldNumber = 11,
     kTxnIdFieldNumber = 1,
@@ -677,6 +852,28 @@ class Txn final :
   ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
       mutable_related_nodes();
 
+  // repeated uint32 received_nodes = 6;
+  int received_nodes_size() const;
+  private:
+  int _internal_received_nodes_size() const;
+  public:
+  void clear_received_nodes();
+  private:
+  uint32_t _internal_received_nodes(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+      _internal_received_nodes() const;
+  void _internal_add_received_nodes(uint32_t value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+      _internal_mutable_received_nodes();
+  public:
+  uint32_t received_nodes(int index) const;
+  void set_received_nodes(int index, uint32_t value);
+  void add_received_nodes(uint32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+      received_nodes() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+      mutable_received_nodes();
+
   // repeated string read_set = 10;
   int read_set_size() const;
   private:
@@ -701,29 +898,23 @@ class Txn final :
   std::string* _internal_add_read_set();
   public:
 
-  // repeated string write_set = 11;
+  // repeated .PB.Txn.KeyValue write_set = 11;
   int write_set_size() const;
   private:
   int _internal_write_set_size() const;
   public:
   void clear_write_set();
-  const std::string& write_set(int index) const;
-  std::string* mutable_write_set(int index);
-  void set_write_set(int index, const std::string& value);
-  void set_write_set(int index, std::string&& value);
-  void set_write_set(int index, const char* value);
-  void set_write_set(int index, const char* value, size_t size);
-  std::string* add_write_set();
-  void add_write_set(const std::string& value);
-  void add_write_set(std::string&& value);
-  void add_write_set(const char* value);
-  void add_write_set(const char* value, size_t size);
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>& write_set() const;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>* mutable_write_set();
+  ::PB::Txn_KeyValue* mutable_write_set(int index);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Txn_KeyValue >*
+      mutable_write_set();
   private:
-  const std::string& _internal_write_set(int index) const;
-  std::string* _internal_add_write_set();
+  const ::PB::Txn_KeyValue& _internal_write_set(int index) const;
+  ::PB::Txn_KeyValue* _internal_add_write_set();
   public:
+  const ::PB::Txn_KeyValue& write_set(int index) const;
+  ::PB::Txn_KeyValue* add_write_set();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Txn_KeyValue >&
+      write_set() const;
 
   // uint64 txn_id = 1;
   void clear_txn_id();
@@ -798,8 +989,10 @@ class Txn final :
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Command > commands_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t > related_nodes_;
   mutable std::atomic<int> _related_nodes_cached_byte_size_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t > received_nodes_;
+  mutable std::atomic<int> _received_nodes_cached_byte_size_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string> read_set_;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string> write_set_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Txn_KeyValue > write_set_;
   uint64_t txn_id_;
   uint64_t start_epoch_;
   uint64_t end_epoch_;
@@ -860,7 +1053,7 @@ class ClientRequest final :
                &_ClientRequest_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    3;
+    4;
 
   friend void swap(ClientRequest& a, ClientRequest& b) {
     a.Swap(&b);
@@ -1032,7 +1225,7 @@ class BatchTxns final :
                &_BatchTxns_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    4;
+    5;
 
   friend void swap(BatchTxns& a, BatchTxns& b) {
     a.Swap(&b);
@@ -1194,7 +1387,7 @@ class HeartBeat final :
                &_HeartBeat_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    5;
+    6;
 
   friend void swap(HeartBeat& a, HeartBeat& b) {
     a.Swap(&b);
@@ -1263,24 +1456,24 @@ class HeartBeat final :
 };
 // -------------------------------------------------------------------
 
-class AbortTids final :
-    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:PB.AbortTids) */ {
+class CATxnIds_CATxnId final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:PB.CATxnIds.CATxnId) */ {
  public:
-  inline AbortTids() : AbortTids(nullptr) {}
-  ~AbortTids() override;
-  explicit PROTOBUF_CONSTEXPR AbortTids(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+  inline CATxnIds_CATxnId() : CATxnIds_CATxnId(nullptr) {}
+  ~CATxnIds_CATxnId() override;
+  explicit PROTOBUF_CONSTEXPR CATxnIds_CATxnId(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
 
-  AbortTids(const AbortTids& from);
-  AbortTids(AbortTids&& from) noexcept
-    : AbortTids() {
+  CATxnIds_CATxnId(const CATxnIds_CATxnId& from);
+  CATxnIds_CATxnId(CATxnIds_CATxnId&& from) noexcept
+    : CATxnIds_CATxnId() {
     *this = ::std::move(from);
   }
 
-  inline AbortTids& operator=(const AbortTids& from) {
+  inline CATxnIds_CATxnId& operator=(const CATxnIds_CATxnId& from) {
     CopyFrom(from);
     return *this;
   }
-  inline AbortTids& operator=(AbortTids&& from) noexcept {
+  inline CATxnIds_CATxnId& operator=(CATxnIds_CATxnId&& from) noexcept {
     if (this == &from) return *this;
     if (GetOwningArena() == from.GetOwningArena()
   #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
@@ -1303,20 +1496,20 @@ class AbortTids final :
   static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
     return default_instance().GetMetadata().reflection;
   }
-  static const AbortTids& default_instance() {
+  static const CATxnIds_CATxnId& default_instance() {
     return *internal_default_instance();
   }
-  static inline const AbortTids* internal_default_instance() {
-    return reinterpret_cast<const AbortTids*>(
-               &_AbortTids_default_instance_);
+  static inline const CATxnIds_CATxnId* internal_default_instance() {
+    return reinterpret_cast<const CATxnIds_CATxnId*>(
+               &_CATxnIds_CATxnId_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    6;
+    7;
 
-  friend void swap(AbortTids& a, AbortTids& b) {
+  friend void swap(CATxnIds_CATxnId& a, CATxnIds_CATxnId& b) {
     a.Swap(&b);
   }
-  inline void Swap(AbortTids* other) {
+  inline void Swap(CATxnIds_CATxnId* other) {
     if (other == this) return;
   #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
     if (GetOwningArena() != nullptr &&
@@ -1329,7 +1522,7 @@ class AbortTids final :
       ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
     }
   }
-  void UnsafeArenaSwap(AbortTids* other) {
+  void UnsafeArenaSwap(CATxnIds_CATxnId* other) {
     if (other == this) return;
     GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
     InternalSwap(other);
@@ -1337,13 +1530,13 @@ class AbortTids final :
 
   // implements Message ----------------------------------------------
 
-  AbortTids* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
-    return CreateMaybeMessage<AbortTids>(arena);
+  CATxnIds_CATxnId* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<CATxnIds_CATxnId>(arena);
   }
   using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
-  void CopyFrom(const AbortTids& from);
+  void CopyFrom(const CATxnIds_CATxnId& from);
   using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
-  void MergeFrom(const AbortTids& from);
+  void MergeFrom(const CATxnIds_CATxnId& from);
   private:
   static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to, const ::PROTOBUF_NAMESPACE_ID::Message& from);
   public:
@@ -1360,15 +1553,15 @@ class AbortTids final :
   void SharedCtor();
   void SharedDtor();
   void SetCachedSize(int size) const final;
-  void InternalSwap(AbortTids* other);
+  void InternalSwap(CATxnIds_CATxnId* other);
 
   private:
   friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
   static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
-    return "PB.AbortTids";
+    return "PB.CATxnIds.CATxnId";
   }
   protected:
-  explicit AbortTids(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+  explicit CATxnIds_CATxnId(::PROTOBUF_NAMESPACE_ID::Arena* arena,
                        bool is_message_owned = false);
   public:
 
@@ -1382,50 +1575,201 @@ class AbortTids final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kTxnIdsFieldNumber = 2,
-    kStartEpochFieldNumber = 1,
+    kTxnIdFieldNumber = 1,
+    kTxnStatusFieldNumber = 2,
   };
-  // repeated uint64 txn_ids = 2;
-  int txn_ids_size() const;
+  // uint64 txn_id = 1;
+  void clear_txn_id();
+  uint64_t txn_id() const;
+  void set_txn_id(uint64_t value);
   private:
-  int _internal_txn_ids_size() const;
-  public:
-  void clear_txn_ids();
-  private:
-  uint64_t _internal_txn_ids(int index) const;
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint64_t >&
-      _internal_txn_ids() const;
-  void _internal_add_txn_ids(uint64_t value);
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint64_t >*
-      _internal_mutable_txn_ids();
-  public:
-  uint64_t txn_ids(int index) const;
-  void set_txn_ids(int index, uint64_t value);
-  void add_txn_ids(uint64_t value);
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint64_t >&
-      txn_ids() const;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint64_t >*
-      mutable_txn_ids();
-
-  // uint64 start_epoch = 1;
-  void clear_start_epoch();
-  uint64_t start_epoch() const;
-  void set_start_epoch(uint64_t value);
-  private:
-  uint64_t _internal_start_epoch() const;
-  void _internal_set_start_epoch(uint64_t value);
+  uint64_t _internal_txn_id() const;
+  void _internal_set_txn_id(uint64_t value);
   public:
 
-  // @@protoc_insertion_point(class_scope:PB.AbortTids)
+  // .PB.TxnStatus txn_status = 2;
+  void clear_txn_status();
+  ::PB::TxnStatus txn_status() const;
+  void set_txn_status(::PB::TxnStatus value);
+  private:
+  ::PB::TxnStatus _internal_txn_status() const;
+  void _internal_set_txn_status(::PB::TxnStatus value);
+  public:
+
+  // @@protoc_insertion_point(class_scope:PB.CATxnIds.CATxnId)
  private:
   class _Internal;
 
   template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint64_t > txn_ids_;
-  mutable std::atomic<int> _txn_ids_cached_byte_size_;
-  uint64_t start_epoch_;
+  uint64_t txn_id_;
+  int txn_status_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_message_2eproto;
+};
+// -------------------------------------------------------------------
+
+class CATxnIds final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:PB.CATxnIds) */ {
+ public:
+  inline CATxnIds() : CATxnIds(nullptr) {}
+  ~CATxnIds() override;
+  explicit PROTOBUF_CONSTEXPR CATxnIds(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  CATxnIds(const CATxnIds& from);
+  CATxnIds(CATxnIds&& from) noexcept
+    : CATxnIds() {
+    *this = ::std::move(from);
+  }
+
+  inline CATxnIds& operator=(const CATxnIds& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline CATxnIds& operator=(CATxnIds&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const CATxnIds& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const CATxnIds* internal_default_instance() {
+    return reinterpret_cast<const CATxnIds*>(
+               &_CATxnIds_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    8;
+
+  friend void swap(CATxnIds& a, CATxnIds& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(CATxnIds* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(CATxnIds* other) {
+    if (other == this) return;
+    GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  CATxnIds* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<CATxnIds>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const CATxnIds& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom(const CATxnIds& from);
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to, const ::PROTOBUF_NAMESPACE_ID::Message& from);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  uint8_t* _InternalSerialize(
+      uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _cached_size_.Get(); }
+
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(CATxnIds* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "PB.CATxnIds";
+  }
+  protected:
+  explicit CATxnIds(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                       bool is_message_owned = false);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  typedef CATxnIds_CATxnId CATxnId;
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kCaTxnIdsFieldNumber = 2,
+    kEpochFieldNumber = 1,
+  };
+  // repeated .PB.CATxnIds.CATxnId ca_txn_ids = 2;
+  int ca_txn_ids_size() const;
+  private:
+  int _internal_ca_txn_ids_size() const;
+  public:
+  void clear_ca_txn_ids();
+  ::PB::CATxnIds_CATxnId* mutable_ca_txn_ids(int index);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::CATxnIds_CATxnId >*
+      mutable_ca_txn_ids();
+  private:
+  const ::PB::CATxnIds_CATxnId& _internal_ca_txn_ids(int index) const;
+  ::PB::CATxnIds_CATxnId* _internal_add_ca_txn_ids();
+  public:
+  const ::PB::CATxnIds_CATxnId& ca_txn_ids(int index) const;
+  ::PB::CATxnIds_CATxnId* add_ca_txn_ids();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::CATxnIds_CATxnId >&
+      ca_txn_ids() const;
+
+  // uint64 epoch = 1;
+  void clear_epoch();
+  uint64_t epoch() const;
+  void set_epoch(uint64_t value);
+  private:
+  uint64_t _internal_epoch() const;
+  void _internal_set_epoch(uint64_t value);
+  public:
+
+  // @@protoc_insertion_point(class_scope:PB.CATxnIds)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::CATxnIds_CATxnId > ca_txn_ids_;
+  uint64_t epoch_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_message_2eproto;
 };
@@ -1477,8 +1821,8 @@ class MessageProto final :
   enum MessageTypeCase {
     kBatchTxns = 21,
     kHeartBeat = 22,
-    kAbortTids = 23,
-    kSingleTxn = 24,
+    kSingleTxn = 23,
+    kTxnResult = 24,
     MESSAGE_TYPE_NOT_SET = 0,
   };
 
@@ -1487,7 +1831,7 @@ class MessageProto final :
                &_MessageProto_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    7;
+    9;
 
   friend void swap(MessageProto& a, MessageProto& b) {
     a.Swap(&b);
@@ -1560,8 +1904,8 @@ class MessageProto final :
     MessageProto_MessageType_HEARTBEAT;
   static constexpr MessageType BATCHTXNS =
     MessageProto_MessageType_BATCHTXNS;
-  static constexpr MessageType ABORTTIDS =
-    MessageProto_MessageType_ABORTTIDS;
+  static constexpr MessageType CATXNIDS =
+    MessageProto_MessageType_CATXNIDS;
   static constexpr MessageType SINGLETXN =
     MessageProto_MessageType_SINGLETXN;
   static inline bool MessageType_IsValid(int value) {
@@ -1600,8 +1944,8 @@ class MessageProto final :
     kTypeFieldNumber = 15,
     kBatchTxnsFieldNumber = 21,
     kHeartBeatFieldNumber = 22,
-    kAbortTidsFieldNumber = 23,
-    kSingleTxnFieldNumber = 24,
+    kSingleTxnFieldNumber = 23,
+    kTxnResultFieldNumber = 24,
   };
   // string src_channel = 12;
   void clear_src_channel();
@@ -1708,25 +2052,7 @@ class MessageProto final :
       ::PB::HeartBeat* heart_beat);
   ::PB::HeartBeat* unsafe_arena_release_heart_beat();
 
-  // .PB.AbortTids abort_tids = 23;
-  bool has_abort_tids() const;
-  private:
-  bool _internal_has_abort_tids() const;
-  public:
-  void clear_abort_tids();
-  const ::PB::AbortTids& abort_tids() const;
-  PROTOBUF_NODISCARD ::PB::AbortTids* release_abort_tids();
-  ::PB::AbortTids* mutable_abort_tids();
-  void set_allocated_abort_tids(::PB::AbortTids* abort_tids);
-  private:
-  const ::PB::AbortTids& _internal_abort_tids() const;
-  ::PB::AbortTids* _internal_mutable_abort_tids();
-  public:
-  void unsafe_arena_set_allocated_abort_tids(
-      ::PB::AbortTids* abort_tids);
-  ::PB::AbortTids* unsafe_arena_release_abort_tids();
-
-  // .PB.Txn single_txn = 24;
+  // .PB.Txn single_txn = 23;
   bool has_single_txn() const;
   private:
   bool _internal_has_single_txn() const;
@@ -1744,6 +2070,24 @@ class MessageProto final :
       ::PB::Txn* single_txn);
   ::PB::Txn* unsafe_arena_release_single_txn();
 
+  // .PB.CATxnIds txn_result = 24;
+  bool has_txn_result() const;
+  private:
+  bool _internal_has_txn_result() const;
+  public:
+  void clear_txn_result();
+  const ::PB::CATxnIds& txn_result() const;
+  PROTOBUF_NODISCARD ::PB::CATxnIds* release_txn_result();
+  ::PB::CATxnIds* mutable_txn_result();
+  void set_allocated_txn_result(::PB::CATxnIds* txn_result);
+  private:
+  const ::PB::CATxnIds& _internal_txn_result() const;
+  ::PB::CATxnIds* _internal_mutable_txn_result();
+  public:
+  void unsafe_arena_set_allocated_txn_result(
+      ::PB::CATxnIds* txn_result);
+  ::PB::CATxnIds* unsafe_arena_release_txn_result();
+
   void clear_message_type();
   MessageTypeCase message_type_case() const;
   // @@protoc_insertion_point(class_scope:PB.MessageProto)
@@ -1751,8 +2095,8 @@ class MessageProto final :
   class _Internal;
   void set_has_batch_txns();
   void set_has_heart_beat();
-  void set_has_abort_tids();
   void set_has_single_txn();
+  void set_has_txn_result();
 
   inline bool has_message_type() const;
   inline void clear_has_message_type();
@@ -1771,8 +2115,8 @@ class MessageProto final :
       ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized _constinit_;
     ::PB::BatchTxns* batch_txns_;
     ::PB::HeartBeat* heart_beat_;
-    ::PB::AbortTids* abort_tids_;
     ::PB::Txn* single_txn_;
+    ::PB::CATxnIds* txn_result_;
   } message_type_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   uint32_t _oneof_case_[1];
@@ -1829,7 +2173,7 @@ class ClientReply final :
                &_ClientReply_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    8;
+    10;
 
   friend void swap(ClientReply& a, ClientReply& b) {
     a.Swap(&b);
@@ -2155,6 +2499,110 @@ inline void Command::set_allocated_value(std::string* value) {
 
 // -------------------------------------------------------------------
 
+// Txn_KeyValue
+
+// string key = 1;
+inline void Txn_KeyValue::clear_key() {
+  key_.ClearToEmpty();
+}
+inline const std::string& Txn_KeyValue::key() const {
+  // @@protoc_insertion_point(field_get:PB.Txn.KeyValue.key)
+  return _internal_key();
+}
+template <typename ArgT0, typename... ArgT>
+inline PROTOBUF_ALWAYS_INLINE
+void Txn_KeyValue::set_key(ArgT0&& arg0, ArgT... args) {
+ 
+ key_.Set(static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:PB.Txn.KeyValue.key)
+}
+inline std::string* Txn_KeyValue::mutable_key() {
+  std::string* _s = _internal_mutable_key();
+  // @@protoc_insertion_point(field_mutable:PB.Txn.KeyValue.key)
+  return _s;
+}
+inline const std::string& Txn_KeyValue::_internal_key() const {
+  return key_.Get();
+}
+inline void Txn_KeyValue::_internal_set_key(const std::string& value) {
+  
+  key_.Set(value, GetArenaForAllocation());
+}
+inline std::string* Txn_KeyValue::_internal_mutable_key() {
+  
+  return key_.Mutable(GetArenaForAllocation());
+}
+inline std::string* Txn_KeyValue::release_key() {
+  // @@protoc_insertion_point(field_release:PB.Txn.KeyValue.key)
+  return key_.Release();
+}
+inline void Txn_KeyValue::set_allocated_key(std::string* key) {
+  if (key != nullptr) {
+    
+  } else {
+    
+  }
+  key_.SetAllocated(key, GetArenaForAllocation());
+#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (key_.IsDefault()) {
+    key_.Set("", GetArenaForAllocation());
+  }
+#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:PB.Txn.KeyValue.key)
+}
+
+// string value = 2;
+inline void Txn_KeyValue::clear_value() {
+  value_.ClearToEmpty();
+}
+inline const std::string& Txn_KeyValue::value() const {
+  // @@protoc_insertion_point(field_get:PB.Txn.KeyValue.value)
+  return _internal_value();
+}
+template <typename ArgT0, typename... ArgT>
+inline PROTOBUF_ALWAYS_INLINE
+void Txn_KeyValue::set_value(ArgT0&& arg0, ArgT... args) {
+ 
+ value_.Set(static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:PB.Txn.KeyValue.value)
+}
+inline std::string* Txn_KeyValue::mutable_value() {
+  std::string* _s = _internal_mutable_value();
+  // @@protoc_insertion_point(field_mutable:PB.Txn.KeyValue.value)
+  return _s;
+}
+inline const std::string& Txn_KeyValue::_internal_value() const {
+  return value_.Get();
+}
+inline void Txn_KeyValue::_internal_set_value(const std::string& value) {
+  
+  value_.Set(value, GetArenaForAllocation());
+}
+inline std::string* Txn_KeyValue::_internal_mutable_value() {
+  
+  return value_.Mutable(GetArenaForAllocation());
+}
+inline std::string* Txn_KeyValue::release_value() {
+  // @@protoc_insertion_point(field_release:PB.Txn.KeyValue.value)
+  return value_.Release();
+}
+inline void Txn_KeyValue::set_allocated_value(std::string* value) {
+  if (value != nullptr) {
+    
+  } else {
+    
+  }
+  value_.SetAllocated(value, GetArenaForAllocation());
+#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (value_.IsDefault()) {
+    value_.Set("", GetArenaForAllocation());
+  }
+#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:PB.Txn.KeyValue.value)
+}
+
+// -------------------------------------------------------------------
+
 // Txn
 
 // uint64 txn_id = 1;
@@ -2304,6 +2752,53 @@ Txn::mutable_related_nodes() {
   return _internal_mutable_related_nodes();
 }
 
+// repeated uint32 received_nodes = 6;
+inline int Txn::_internal_received_nodes_size() const {
+  return received_nodes_.size();
+}
+inline int Txn::received_nodes_size() const {
+  return _internal_received_nodes_size();
+}
+inline void Txn::clear_received_nodes() {
+  received_nodes_.Clear();
+}
+inline uint32_t Txn::_internal_received_nodes(int index) const {
+  return received_nodes_.Get(index);
+}
+inline uint32_t Txn::received_nodes(int index) const {
+  // @@protoc_insertion_point(field_get:PB.Txn.received_nodes)
+  return _internal_received_nodes(index);
+}
+inline void Txn::set_received_nodes(int index, uint32_t value) {
+  received_nodes_.Set(index, value);
+  // @@protoc_insertion_point(field_set:PB.Txn.received_nodes)
+}
+inline void Txn::_internal_add_received_nodes(uint32_t value) {
+  received_nodes_.Add(value);
+}
+inline void Txn::add_received_nodes(uint32_t value) {
+  _internal_add_received_nodes(value);
+  // @@protoc_insertion_point(field_add:PB.Txn.received_nodes)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+Txn::_internal_received_nodes() const {
+  return received_nodes_;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+Txn::received_nodes() const {
+  // @@protoc_insertion_point(field_list:PB.Txn.received_nodes)
+  return _internal_received_nodes();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+Txn::_internal_mutable_received_nodes() {
+  return &received_nodes_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+Txn::mutable_received_nodes() {
+  // @@protoc_insertion_point(field_mutable_list:PB.Txn.received_nodes)
+  return _internal_mutable_received_nodes();
+}
+
 // .PB.TxnStatus status = 7;
 inline void Txn::clear_status() {
   status_ = 0;
@@ -2439,7 +2934,7 @@ Txn::mutable_read_set() {
   return &read_set_;
 }
 
-// repeated string write_set = 11;
+// repeated .PB.Txn.KeyValue write_set = 11;
 inline int Txn::_internal_write_set_size() const {
   return write_set_.size();
 }
@@ -2449,69 +2944,34 @@ inline int Txn::write_set_size() const {
 inline void Txn::clear_write_set() {
   write_set_.Clear();
 }
-inline std::string* Txn::add_write_set() {
-  std::string* _s = _internal_add_write_set();
-  // @@protoc_insertion_point(field_add_mutable:PB.Txn.write_set)
-  return _s;
-}
-inline const std::string& Txn::_internal_write_set(int index) const {
-  return write_set_.Get(index);
-}
-inline const std::string& Txn::write_set(int index) const {
-  // @@protoc_insertion_point(field_get:PB.Txn.write_set)
-  return _internal_write_set(index);
-}
-inline std::string* Txn::mutable_write_set(int index) {
+inline ::PB::Txn_KeyValue* Txn::mutable_write_set(int index) {
   // @@protoc_insertion_point(field_mutable:PB.Txn.write_set)
   return write_set_.Mutable(index);
 }
-inline void Txn::set_write_set(int index, const std::string& value) {
-  write_set_.Mutable(index)->assign(value);
-  // @@protoc_insertion_point(field_set:PB.Txn.write_set)
-}
-inline void Txn::set_write_set(int index, std::string&& value) {
-  write_set_.Mutable(index)->assign(std::move(value));
-  // @@protoc_insertion_point(field_set:PB.Txn.write_set)
-}
-inline void Txn::set_write_set(int index, const char* value) {
-  GOOGLE_DCHECK(value != nullptr);
-  write_set_.Mutable(index)->assign(value);
-  // @@protoc_insertion_point(field_set_char:PB.Txn.write_set)
-}
-inline void Txn::set_write_set(int index, const char* value, size_t size) {
-  write_set_.Mutable(index)->assign(
-    reinterpret_cast<const char*>(value), size);
-  // @@protoc_insertion_point(field_set_pointer:PB.Txn.write_set)
-}
-inline std::string* Txn::_internal_add_write_set() {
-  return write_set_.Add();
-}
-inline void Txn::add_write_set(const std::string& value) {
-  write_set_.Add()->assign(value);
-  // @@protoc_insertion_point(field_add:PB.Txn.write_set)
-}
-inline void Txn::add_write_set(std::string&& value) {
-  write_set_.Add(std::move(value));
-  // @@protoc_insertion_point(field_add:PB.Txn.write_set)
-}
-inline void Txn::add_write_set(const char* value) {
-  GOOGLE_DCHECK(value != nullptr);
-  write_set_.Add()->assign(value);
-  // @@protoc_insertion_point(field_add_char:PB.Txn.write_set)
-}
-inline void Txn::add_write_set(const char* value, size_t size) {
-  write_set_.Add()->assign(reinterpret_cast<const char*>(value), size);
-  // @@protoc_insertion_point(field_add_pointer:PB.Txn.write_set)
-}
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>&
-Txn::write_set() const {
-  // @@protoc_insertion_point(field_list:PB.Txn.write_set)
-  return write_set_;
-}
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>*
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Txn_KeyValue >*
 Txn::mutable_write_set() {
   // @@protoc_insertion_point(field_mutable_list:PB.Txn.write_set)
   return &write_set_;
+}
+inline const ::PB::Txn_KeyValue& Txn::_internal_write_set(int index) const {
+  return write_set_.Get(index);
+}
+inline const ::PB::Txn_KeyValue& Txn::write_set(int index) const {
+  // @@protoc_insertion_point(field_get:PB.Txn.write_set)
+  return _internal_write_set(index);
+}
+inline ::PB::Txn_KeyValue* Txn::_internal_add_write_set() {
+  return write_set_.Add();
+}
+inline ::PB::Txn_KeyValue* Txn::add_write_set() {
+  ::PB::Txn_KeyValue* _add = _internal_add_write_set();
+  // @@protoc_insertion_point(field_add:PB.Txn.write_set)
+  return _add;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Txn_KeyValue >&
+Txn::write_set() const {
+  // @@protoc_insertion_point(field_list:PB.Txn.write_set)
+  return write_set_;
 }
 
 // bool read_only = 12;
@@ -2788,73 +3248,110 @@ BatchTxns::txns() const {
 
 // -------------------------------------------------------------------
 
-// AbortTids
+// CATxnIds_CATxnId
 
-// uint64 start_epoch = 1;
-inline void AbortTids::clear_start_epoch() {
-  start_epoch_ = uint64_t{0u};
+// uint64 txn_id = 1;
+inline void CATxnIds_CATxnId::clear_txn_id() {
+  txn_id_ = uint64_t{0u};
 }
-inline uint64_t AbortTids::_internal_start_epoch() const {
-  return start_epoch_;
+inline uint64_t CATxnIds_CATxnId::_internal_txn_id() const {
+  return txn_id_;
 }
-inline uint64_t AbortTids::start_epoch() const {
-  // @@protoc_insertion_point(field_get:PB.AbortTids.start_epoch)
-  return _internal_start_epoch();
+inline uint64_t CATxnIds_CATxnId::txn_id() const {
+  // @@protoc_insertion_point(field_get:PB.CATxnIds.CATxnId.txn_id)
+  return _internal_txn_id();
 }
-inline void AbortTids::_internal_set_start_epoch(uint64_t value) {
+inline void CATxnIds_CATxnId::_internal_set_txn_id(uint64_t value) {
   
-  start_epoch_ = value;
+  txn_id_ = value;
 }
-inline void AbortTids::set_start_epoch(uint64_t value) {
-  _internal_set_start_epoch(value);
-  // @@protoc_insertion_point(field_set:PB.AbortTids.start_epoch)
+inline void CATxnIds_CATxnId::set_txn_id(uint64_t value) {
+  _internal_set_txn_id(value);
+  // @@protoc_insertion_point(field_set:PB.CATxnIds.CATxnId.txn_id)
 }
 
-// repeated uint64 txn_ids = 2;
-inline int AbortTids::_internal_txn_ids_size() const {
-  return txn_ids_.size();
+// .PB.TxnStatus txn_status = 2;
+inline void CATxnIds_CATxnId::clear_txn_status() {
+  txn_status_ = 0;
 }
-inline int AbortTids::txn_ids_size() const {
-  return _internal_txn_ids_size();
+inline ::PB::TxnStatus CATxnIds_CATxnId::_internal_txn_status() const {
+  return static_cast< ::PB::TxnStatus >(txn_status_);
 }
-inline void AbortTids::clear_txn_ids() {
-  txn_ids_.Clear();
+inline ::PB::TxnStatus CATxnIds_CATxnId::txn_status() const {
+  // @@protoc_insertion_point(field_get:PB.CATxnIds.CATxnId.txn_status)
+  return _internal_txn_status();
 }
-inline uint64_t AbortTids::_internal_txn_ids(int index) const {
-  return txn_ids_.Get(index);
+inline void CATxnIds_CATxnId::_internal_set_txn_status(::PB::TxnStatus value) {
+  
+  txn_status_ = value;
 }
-inline uint64_t AbortTids::txn_ids(int index) const {
-  // @@protoc_insertion_point(field_get:PB.AbortTids.txn_ids)
-  return _internal_txn_ids(index);
+inline void CATxnIds_CATxnId::set_txn_status(::PB::TxnStatus value) {
+  _internal_set_txn_status(value);
+  // @@protoc_insertion_point(field_set:PB.CATxnIds.CATxnId.txn_status)
 }
-inline void AbortTids::set_txn_ids(int index, uint64_t value) {
-  txn_ids_.Set(index, value);
-  // @@protoc_insertion_point(field_set:PB.AbortTids.txn_ids)
+
+// -------------------------------------------------------------------
+
+// CATxnIds
+
+// uint64 epoch = 1;
+inline void CATxnIds::clear_epoch() {
+  epoch_ = uint64_t{0u};
 }
-inline void AbortTids::_internal_add_txn_ids(uint64_t value) {
-  txn_ids_.Add(value);
+inline uint64_t CATxnIds::_internal_epoch() const {
+  return epoch_;
 }
-inline void AbortTids::add_txn_ids(uint64_t value) {
-  _internal_add_txn_ids(value);
-  // @@protoc_insertion_point(field_add:PB.AbortTids.txn_ids)
+inline uint64_t CATxnIds::epoch() const {
+  // @@protoc_insertion_point(field_get:PB.CATxnIds.epoch)
+  return _internal_epoch();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint64_t >&
-AbortTids::_internal_txn_ids() const {
-  return txn_ids_;
+inline void CATxnIds::_internal_set_epoch(uint64_t value) {
+  
+  epoch_ = value;
 }
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint64_t >&
-AbortTids::txn_ids() const {
-  // @@protoc_insertion_point(field_list:PB.AbortTids.txn_ids)
-  return _internal_txn_ids();
+inline void CATxnIds::set_epoch(uint64_t value) {
+  _internal_set_epoch(value);
+  // @@protoc_insertion_point(field_set:PB.CATxnIds.epoch)
 }
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint64_t >*
-AbortTids::_internal_mutable_txn_ids() {
-  return &txn_ids_;
+
+// repeated .PB.CATxnIds.CATxnId ca_txn_ids = 2;
+inline int CATxnIds::_internal_ca_txn_ids_size() const {
+  return ca_txn_ids_.size();
 }
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint64_t >*
-AbortTids::mutable_txn_ids() {
-  // @@protoc_insertion_point(field_mutable_list:PB.AbortTids.txn_ids)
-  return _internal_mutable_txn_ids();
+inline int CATxnIds::ca_txn_ids_size() const {
+  return _internal_ca_txn_ids_size();
+}
+inline void CATxnIds::clear_ca_txn_ids() {
+  ca_txn_ids_.Clear();
+}
+inline ::PB::CATxnIds_CATxnId* CATxnIds::mutable_ca_txn_ids(int index) {
+  // @@protoc_insertion_point(field_mutable:PB.CATxnIds.ca_txn_ids)
+  return ca_txn_ids_.Mutable(index);
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::CATxnIds_CATxnId >*
+CATxnIds::mutable_ca_txn_ids() {
+  // @@protoc_insertion_point(field_mutable_list:PB.CATxnIds.ca_txn_ids)
+  return &ca_txn_ids_;
+}
+inline const ::PB::CATxnIds_CATxnId& CATxnIds::_internal_ca_txn_ids(int index) const {
+  return ca_txn_ids_.Get(index);
+}
+inline const ::PB::CATxnIds_CATxnId& CATxnIds::ca_txn_ids(int index) const {
+  // @@protoc_insertion_point(field_get:PB.CATxnIds.ca_txn_ids)
+  return _internal_ca_txn_ids(index);
+}
+inline ::PB::CATxnIds_CATxnId* CATxnIds::_internal_add_ca_txn_ids() {
+  return ca_txn_ids_.Add();
+}
+inline ::PB::CATxnIds_CATxnId* CATxnIds::add_ca_txn_ids() {
+  ::PB::CATxnIds_CATxnId* _add = _internal_add_ca_txn_ids();
+  // @@protoc_insertion_point(field_add:PB.CATxnIds.ca_txn_ids)
+  return _add;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::CATxnIds_CATxnId >&
+CATxnIds::ca_txn_ids() const {
+  // @@protoc_insertion_point(field_list:PB.CATxnIds.ca_txn_ids)
+  return ca_txn_ids_;
 }
 
 // -------------------------------------------------------------------
@@ -3169,81 +3666,7 @@ inline ::PB::HeartBeat* MessageProto::mutable_heart_beat() {
   return _msg;
 }
 
-// .PB.AbortTids abort_tids = 23;
-inline bool MessageProto::_internal_has_abort_tids() const {
-  return message_type_case() == kAbortTids;
-}
-inline bool MessageProto::has_abort_tids() const {
-  return _internal_has_abort_tids();
-}
-inline void MessageProto::set_has_abort_tids() {
-  _oneof_case_[0] = kAbortTids;
-}
-inline void MessageProto::clear_abort_tids() {
-  if (_internal_has_abort_tids()) {
-    if (GetArenaForAllocation() == nullptr) {
-      delete message_type_.abort_tids_;
-    }
-    clear_has_message_type();
-  }
-}
-inline ::PB::AbortTids* MessageProto::release_abort_tids() {
-  // @@protoc_insertion_point(field_release:PB.MessageProto.abort_tids)
-  if (_internal_has_abort_tids()) {
-    clear_has_message_type();
-    ::PB::AbortTids* temp = message_type_.abort_tids_;
-    if (GetArenaForAllocation() != nullptr) {
-      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
-    }
-    message_type_.abort_tids_ = nullptr;
-    return temp;
-  } else {
-    return nullptr;
-  }
-}
-inline const ::PB::AbortTids& MessageProto::_internal_abort_tids() const {
-  return _internal_has_abort_tids()
-      ? *message_type_.abort_tids_
-      : reinterpret_cast< ::PB::AbortTids&>(::PB::_AbortTids_default_instance_);
-}
-inline const ::PB::AbortTids& MessageProto::abort_tids() const {
-  // @@protoc_insertion_point(field_get:PB.MessageProto.abort_tids)
-  return _internal_abort_tids();
-}
-inline ::PB::AbortTids* MessageProto::unsafe_arena_release_abort_tids() {
-  // @@protoc_insertion_point(field_unsafe_arena_release:PB.MessageProto.abort_tids)
-  if (_internal_has_abort_tids()) {
-    clear_has_message_type();
-    ::PB::AbortTids* temp = message_type_.abort_tids_;
-    message_type_.abort_tids_ = nullptr;
-    return temp;
-  } else {
-    return nullptr;
-  }
-}
-inline void MessageProto::unsafe_arena_set_allocated_abort_tids(::PB::AbortTids* abort_tids) {
-  clear_message_type();
-  if (abort_tids) {
-    set_has_abort_tids();
-    message_type_.abort_tids_ = abort_tids;
-  }
-  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:PB.MessageProto.abort_tids)
-}
-inline ::PB::AbortTids* MessageProto::_internal_mutable_abort_tids() {
-  if (!_internal_has_abort_tids()) {
-    clear_message_type();
-    set_has_abort_tids();
-    message_type_.abort_tids_ = CreateMaybeMessage< ::PB::AbortTids >(GetArenaForAllocation());
-  }
-  return message_type_.abort_tids_;
-}
-inline ::PB::AbortTids* MessageProto::mutable_abort_tids() {
-  ::PB::AbortTids* _msg = _internal_mutable_abort_tids();
-  // @@protoc_insertion_point(field_mutable:PB.MessageProto.abort_tids)
-  return _msg;
-}
-
-// .PB.Txn single_txn = 24;
+// .PB.Txn single_txn = 23;
 inline bool MessageProto::_internal_has_single_txn() const {
   return message_type_case() == kSingleTxn;
 }
@@ -3314,6 +3737,80 @@ inline ::PB::Txn* MessageProto::_internal_mutable_single_txn() {
 inline ::PB::Txn* MessageProto::mutable_single_txn() {
   ::PB::Txn* _msg = _internal_mutable_single_txn();
   // @@protoc_insertion_point(field_mutable:PB.MessageProto.single_txn)
+  return _msg;
+}
+
+// .PB.CATxnIds txn_result = 24;
+inline bool MessageProto::_internal_has_txn_result() const {
+  return message_type_case() == kTxnResult;
+}
+inline bool MessageProto::has_txn_result() const {
+  return _internal_has_txn_result();
+}
+inline void MessageProto::set_has_txn_result() {
+  _oneof_case_[0] = kTxnResult;
+}
+inline void MessageProto::clear_txn_result() {
+  if (_internal_has_txn_result()) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete message_type_.txn_result_;
+    }
+    clear_has_message_type();
+  }
+}
+inline ::PB::CATxnIds* MessageProto::release_txn_result() {
+  // @@protoc_insertion_point(field_release:PB.MessageProto.txn_result)
+  if (_internal_has_txn_result()) {
+    clear_has_message_type();
+    ::PB::CATxnIds* temp = message_type_.txn_result_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    message_type_.txn_result_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::PB::CATxnIds& MessageProto::_internal_txn_result() const {
+  return _internal_has_txn_result()
+      ? *message_type_.txn_result_
+      : reinterpret_cast< ::PB::CATxnIds&>(::PB::_CATxnIds_default_instance_);
+}
+inline const ::PB::CATxnIds& MessageProto::txn_result() const {
+  // @@protoc_insertion_point(field_get:PB.MessageProto.txn_result)
+  return _internal_txn_result();
+}
+inline ::PB::CATxnIds* MessageProto::unsafe_arena_release_txn_result() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:PB.MessageProto.txn_result)
+  if (_internal_has_txn_result()) {
+    clear_has_message_type();
+    ::PB::CATxnIds* temp = message_type_.txn_result_;
+    message_type_.txn_result_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void MessageProto::unsafe_arena_set_allocated_txn_result(::PB::CATxnIds* txn_result) {
+  clear_message_type();
+  if (txn_result) {
+    set_has_txn_result();
+    message_type_.txn_result_ = txn_result;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:PB.MessageProto.txn_result)
+}
+inline ::PB::CATxnIds* MessageProto::_internal_mutable_txn_result() {
+  if (!_internal_has_txn_result()) {
+    clear_message_type();
+    set_has_txn_result();
+    message_type_.txn_result_ = CreateMaybeMessage< ::PB::CATxnIds >(GetArenaForAllocation());
+  }
+  return message_type_.txn_result_;
+}
+inline ::PB::CATxnIds* MessageProto::mutable_txn_result() {
+  ::PB::CATxnIds* _msg = _internal_mutable_txn_result();
+  // @@protoc_insertion_point(field_mutable:PB.MessageProto.txn_result)
   return _msg;
 }
 
@@ -3478,6 +3975,10 @@ ClientReply::mutable_query_set() {
 #ifdef __GNUC__
   #pragma GCC diagnostic pop
 #endif  // __GNUC__
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------

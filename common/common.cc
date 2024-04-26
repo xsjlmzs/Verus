@@ -108,10 +108,10 @@ int Configuration::ReadFromFile(const std::string& filename)
 
 // ---------------------------- Class Connection -------------------------------
 
-Connection::Connection(Configuration* config) : config_(config), cxt_(), deconstructor_invoked_(false) {
+Connection::Connection(Configuration* config, uint32 node_id) : config_(config), cxt_(), deconstructor_invoked_(false) {
 
     LOG(INFO) << "Connection Start Init";
-    remote_port_ = config_->all_nodes_[config_->node_id_]->port;
+    remote_port_ = config_->all_nodes_[node_id]->port;
     remote_in_ = new zmqpp::socket(cxt_, zmqpp::socket_type::pull);
     std::string remote_endpoint = "tcp://*:" + std::to_string(remote_port_);
     remote_in_->bind(remote_endpoint);
@@ -129,7 +129,7 @@ Connection::Connection(Configuration* config) : config_(config), cxt_(), deconst
     // <node_id, Node*>
     for (std::map<uint32, Node*>::const_iterator it = config->all_nodes_.begin();
          it != config->all_nodes_.end(); it++) {
-        if (config->node_id_ != it->first) {
+        if (node_id != it->first) {
             remote_out_[it->first] = new zmqpp::socket(cxt_,zmqpp::socket_type::push);
             std::string endpoint = "tcp://" + it->second->host + ':' + std::to_string(it->second->port); 
             remote_out_[it->first]->connect(endpoint); 
