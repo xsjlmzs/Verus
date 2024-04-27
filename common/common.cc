@@ -284,18 +284,6 @@ void Connection::Run()
         get_req = send_message_queue_->Pop(&mp);
         if (get_req)
         {
-            if (mp.dest_node_id() == mp.src_node_id())
-            {
-                if (channel_results_.Count(mp.dest_channel()) == 0)
-                {
-                    undelivered_messages_[mp.dest_channel()].push_back(mp);
-                }
-                else
-                {
-                    channel_results_.Lookup(mp.dest_channel())->Push(mp);
-                }
-            }
-            else
             {
                 std::string mp_str;
                 // LOG(INFO) << "send epoch : " << mp.debug_info() << " " << mp.src_node_id() << " & " << mp.dest_node_id();

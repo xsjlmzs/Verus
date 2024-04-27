@@ -9,7 +9,6 @@ Proxy::Proxy(Configuration* config, Connection* conn, Client* client)
     LOG(INFO) << "Proxy init Start";
     HeartBeat();
     LOG(INFO) << "Proxy init End";
-
     worker_ = std::thread(&Proxy::Run, this);
 }
 
@@ -47,6 +46,7 @@ uint32 Proxy::Hash(std::string key)
 void Proxy::Run()
 {
     std::string channel = "Proxy";
+    conn_->NewChannel(channel);
     std::vector<PB::Txn*> subtxns(config_->replica_size_, nullptr);
     while (!deconstructor_invoked_)
     {
@@ -69,7 +69,7 @@ void Proxy::Run()
                 subtxns[server_id]->set_txn_id(txn->txn_id());
                 subtxns[server_id]->set_status(PB::TxnStatus::PEND);
             }
-            subtxns[server_id]->add_commands()->CopyFrom(cmd);
+            subtxns[server_id]->mutable_commands()->Add(std::move(cmd));
             related_nodes.insert(server_id);
         }
 
@@ -86,8 +86,8 @@ void Proxy::Run()
                 
                 PB::MessageProto mp;
                 mp.set_type(PB::MessageProto_MessageType_SINGLETXN);
-                mp.mutable_single_txn()->CopyFrom(*subtxns[i]);
-                delete subtxns[i];
+                mp.set_allocated_single_txn(subtxns[i]);
+                // delete subtxns[i];
                 subtxns[i] == nullptr;
                 mp.set_src_node_id(proxy_id_);
                 mp.set_src_channel(channel);
