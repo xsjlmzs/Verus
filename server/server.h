@@ -47,7 +47,7 @@ namespace taas
         
         std::vector<std::map<std::string, Metadata> > crdt_map_;
         // local txn <epoch-id, txns>
-        std::mutex mutexes_local_txns_[32];
+        std::mutex mutexes_local_txns_[64];
         std::vector<std::vector<PB::Txn> > local_txns_;
         std::vector<std::vector<PB::Txn> > remote_txns_;
         // WaitTxns
@@ -79,13 +79,11 @@ namespace taas
         Isolation isolation;
 
         void HeartbeatAllServers();
-        void Execute(PB::Txn* txn, uint64  cur_epoch_mod);
+        void Execute(PB::Txn* txn, uint64 epoch);
         bool WriteIntent(const PB::Txn& txn, uint64 epoch);
         bool ValidateWS(const PB::Txn& txn, uint64 epoch);
         void ValidateAtomic(uint64 epoch);
         void EpochWrite(uint64 epoch);
-
-        bool CheckAtomic(const PB::Txn& txn, bool committed);
         void PrintStatistic(uint32 epoch);
 
         std::thread worker_;

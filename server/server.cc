@@ -1,7 +1,8 @@
 
 #include "server.h"
 
-extern int thread_num;
+extern uint32 thread_num;
+extern uint32 buffer_size;
 extern uint32 epoch_length;
 extern uint64 run_epoch;
 extern taas::Isolation isol;
@@ -19,12 +20,12 @@ namespace taas
         thread_pool_ = new ThreadPool(thread_num);
         thread_pool_->init();
         // init 
-        crdt_map_.resize(thread_num);
-        // mutexes_local_txns_.resize(thread_num);
-        local_txns_.resize(thread_num);
-        remote_txns_.resize(thread_num);
-        commit_txns_.resize(thread_num);
-        abort_txns_.resize(thread_num);
+        crdt_map_.resize(buffer_size);
+        // mutexes_local_txns_.resize(buffer_size);
+        local_txns_.resize(buffer_size);
+        remote_txns_.resize(buffer_size);
+        commit_txns_.resize(buffer_size);
+        abort_txns_.resize(buffer_size);
         LOG(INFO) << "Start Sync All Servers";
 
         HeartbeatAllServers();
@@ -41,7 +42,7 @@ namespace taas
         delete storage_, thread_pool_;
     }
 
-    void Server::Execute(PB::Txn* txn, uint64 cur_epoch_mod)
+    void Server::Execute(PB::Txn* txn, uint64 epoch)
     {
         storage_->LockRead();
         txn->set_status(PB::TxnStatus::EXEC);
@@ -66,8 +67,13 @@ namespace taas
         txn->set_end_epoch(epoch_manager_->GetPhysicalEpoch());
         txn->set_status(PB::TxnStatus::PRECOMMIT);
         {
-            std::unique_lock<std::mutex> lk(mutexes_local_txns_[cur_epoch_mod]);
-            local_txns_[cur_epoch_mod].push_back(*txn);
+            uint64 cur_epoch = epoch_manager_->GetPhysicalEpoch();
+            uint64 epoch_mod = cur_epoch % buffer_size;
+            std::unique_lock<std::mutex> lk(mutexes_local_txns_[epoch_mod]);
+            if (cur_epoch == epoch)
+            {
+                local_txns_[epoch_mod].push_back(*txn);
+            }
             delete txn;
         }
     }
@@ -112,7 +118,7 @@ namespace taas
     {
         for (const PB::Txn::KeyValue& kv : txn.write_set())
         {
-            if (crdt_map_[index].count(kv.key()))
+            if (crdt_map_[index].find(kv.key()) != crdt_map_[index].end())
             {
                 // exist earlier record
                 const Metadata& prev_data = crdt_map_[index][kv.key()];
@@ -237,7 +243,7 @@ namespace taas
         {
             uint64 start_time = GetTime();
             uint64 cur_epoch = epoch_manager_->GetPhysicalEpoch();
-            uint64 cur_epoch_mod = cur_epoch % thread_num;
+            uint64 cur_epoch_mod = cur_epoch % buffer_size;
             
             // reach max running epoch, exit
             if (cur_epoch == limit_epoch_+1)
@@ -251,15 +257,15 @@ namespace taas
             
             // start a epoch
             LOG(INFO) << "------ epoch "<< cur_epoch << " start ------";
-            // clear old data
-            {
-                crdt_map_[cur_epoch_mod].clear();
-                local_txns_[cur_epoch_mod].clear();
-                remote_txns_[cur_epoch_mod].clear();
+            // // clear old data
+            // {
+            //     crdt_map_[cur_epoch_mod].clear();
+            //     local_txns_[cur_epoch_mod].clear();
+            //     remote_txns_[cur_epoch_mod].clear();
 
-                commit_txns_[cur_epoch_mod].clear();
-                abort_txns_[cur_epoch_mod].clear();
-            }
+            //     commit_txns_[cur_epoch_mod].clear();
+            //     abort_txns_[cur_epoch_mod].clear();
+            // }
             uint32 cnt = 0;
             while (GetTime() - start_time < epoch_manager_->GetEpochDuration())
             {
@@ -281,11 +287,12 @@ namespace taas
                     t.detach(); // 独自执行
                 }
             }
-            epoch_manager_->AddPhysicalEpoch();
             LOG(INFO) << "epoch : " << cur_epoch << " " << "received " << cnt << " txns";
             LOG(INFO) << "epoch : " << cur_epoch << " " << local_txns_[cur_epoch_mod].size() << " txns done";
+            epoch_manager_->AddPhysicalEpoch();
             // process with all other shard peer
             // worker
+            usleep(1000);
             thread_pool_->submit(std::bind(&Server::Work, this, cur_epoch));
             LOG(INFO) << "------ epoch "<< cur_epoch << " end ------";
         }
@@ -380,7 +387,7 @@ namespace taas
         PB::MessageProto local_txns_mp;
         local_txns_mp.set_type(PB::MessageProto::BATCHTXNS);
         local_txns_mp.mutable_batch_txns()->set_commit_epoch(epoch);
-        uint64 epoch_mod = epoch % thread_num;
+        uint64 epoch_mod = epoch % buffer_size;
         for (PB::Txn txn : local_txns_[epoch_mod])
         {
             local_txns_mp.mutable_batch_txns()->mutable_txns()->Add(std::move(txn));
@@ -419,7 +426,8 @@ namespace taas
     void Server::Merge(uint64 epoch)
     {
         // write intent for local txns and remote txns
-        uint64 epoch_mod = epoch % thread_num;
+        uint64 epoch_mod = epoch % buffer_size;
+        LOG(INFO) << "epoch_mod" << epoch_mod;
         for (PB::Txn& txn : local_txns_[epoch_mod])
         {
             bool res = WriteIntent(txn, epoch_mod);
@@ -467,7 +475,7 @@ namespace taas
 
     void Server::ValidateAtomic(uint64 epoch)
     {
-        uint64 epoch_mod = epoch % thread_num;
+        uint64 epoch_mod = epoch % buffer_size;
         std::vector<std::vector<TxnRes> > send_buf;
         send_buf.resize(config_->all_nodes_.size());
         // arrange distributed txn's result
@@ -569,7 +577,7 @@ namespace taas
             cv_.wait(lk, [this, epoch]{return this->epoch_manager_->GetCommittedEpoch() == epoch-1; });
             lk.unlock();
         }
-        uint64 epoch_mod = epoch % thread_num;
+        uint64 epoch_mod = epoch % buffer_size;
         for (const auto &kv : commit_txns_[epoch_mod])
         {
             const PB::Txn& txn = kv.second;
@@ -587,7 +595,7 @@ namespace taas
     }
     void Server::PrintStatistic(uint32 epoch)
     {
-        uint64 epoch_mod = epoch % thread_num;
+        uint64 epoch_mod = epoch % buffer_size;
         std::string filename = "./report." + UInt32ToString(server_id_) + "." + UInt64ToString(epoch);
         std::ofstream file(filename);
         std::string report;
@@ -640,8 +648,8 @@ namespace taas
         LOG(INFO) << "epoch : " << epoch << " Start Merge";
         Merge(epoch);
         LOG(INFO) << "epoch : " << epoch << " Merge Finish";
-        LOG(INFO) << "commitTxns " << commit_txns_[epoch%thread_num].size();
-        LOG(INFO) << "abortTxns " << abort_txns_[epoch%thread_num].size();
+        LOG(INFO) << "commitTxns " << commit_txns_[epoch % buffer_size].size();
+        LOG(INFO) << "abortTxns " << abort_txns_[epoch % buffer_size].size();
         // validate atomic
         LOG(INFO) << "epoch : " << epoch << " Start Validate";
         ValidateAtomic(epoch);

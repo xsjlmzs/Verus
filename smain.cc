@@ -3,7 +3,7 @@
 #include "server.h"
 
 std::string isolations[]{"READ_COMMIT", "REPEATABLE_READ"};
-uint32 node_id = 0,thread_num = 16;
+uint32 node_id = 0,thread_num = 16, buffer_size = 64;
 std::string server_path = "../conf/server_ip.conf";
 std::string proxy_path = "../conf/proxy_ip.conf";
 uint32 epoch_length = 10ul;
@@ -80,6 +80,7 @@ int main(int argc, char *argv[])
     LOG(INFO) << "run_epoch : " << run_epoch; 
     LOG(INFO) << "isolation : " << isolations[isol];
     LOG(INFO) << "limit_txns : " << limit_txns;
+    LOG(INFO) << "buffer_size : " << buffer_size;
     std::unique_ptr<Configuration> config(new Configuration(server_path, proxy_path));
     std::unique_ptr<Connection> conn(new Connection(config.get(), config->all_nodes_[node_id]->port));
     Spin(1);
