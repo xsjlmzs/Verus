@@ -41,17 +41,21 @@ class Configuration
 {
 private:
     /* data */
-    int ReadFromFile(const std::string& name);
+    int ReadServers(const std::string& path);
+    int ReadProxy(const std::string& path);
 public:
     int replica_size_;
     int replica_num_;
 
     std::map<uint32, Node*> all_nodes_; 
+    Node* proxy_;
+
+    std::string servers_config_file_;
+    std::string proxy_config_file_;
     // std::map<int, int> replica_size; // <replica_id, size>
     // std::map<std::pair<int, int>, int> node_ids; // <<replica_id, partition_id>, node_id>
-    Configuration(const std::string filename);
+    Configuration(const std::string spath, std::string ppath);
     ~Configuration();
-
 };
 
 class Connection

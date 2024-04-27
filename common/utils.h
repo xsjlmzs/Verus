@@ -68,6 +68,7 @@ string IntToString(int n);
 // Converts a human-readable numeric string to an (u)int{32,64}. Dies on bad
 // inputs.
 int StringToInt(const string& s);
+uint64 StringToUInt64(const string& s);
 
 static inline void DeleteString(void* data, void* hint) {
   delete reinterpret_cast<string*>(hint);

@@ -76,6 +76,7 @@ namespace taas
         PB::MessageProto sync_msg;
         sync_msg.set_type(PB::MessageProto_MessageType_HEARTBEAT);
         sync_msg.set_dest_channel(channel);
+        sync_msg.set_src_channel(channel);
         sync_msg.set_src_node_id(server_id_);
         for (std::map<uint32, Node*>::iterator iter = config_->all_nodes_.begin();
             iter != config_->all_nodes_.end(); ++iter)
@@ -87,8 +88,8 @@ namespace taas
             conn_->Send(sync_msg);
         }
         
-        // waiting for the replies from rest servers of cluster
-        int sync_server_cnt = 1;
+        // waiting for servers and proxy's replies
+        int sync_server_cnt = 0;
         // sync_msg.Clear();
         while (sync_server_cnt < config_->all_nodes_.size())
         {
@@ -96,10 +97,12 @@ namespace taas
             {
                 sync_server_cnt++;
             }
-            usleep(100);
+            {
+                usleep(100);
+            }
         }
         // sync complete
-        conn_->DeleteChannel("Heartbeat");
+        conn_->DeleteChannel(channel);
     }
 
     bool Server::WriteIntent(const PB::Txn& txn, uint64 index)
@@ -261,7 +264,7 @@ namespace taas
                     continue;
                 }
                 PB::MessageProto *received_txn = nullptr;
-                conn_->GetMessage("proxy", received_txn);
+                conn_->GetMessage("Proxy", received_txn);
                 received_txn->mutable_single_txn()->set_status(PB::TxnStatus::PEND);
                 received_txn->mutable_single_txn()->set_start_ts(GetTime());
                 thread_pool_->submit(std::bind(&Server::Execute, this, received_txn->mutable_single_txn(), cur_epoch_mod));

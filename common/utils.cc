@@ -133,6 +133,11 @@ int StringToInt(const string& s) {
   return atoi(s.c_str());
 }
 
+uint64 StringToUInt64(const string& s)
+{
+  return std::stoull(s);
+}
+
 string DoubleToString(double n) {
   char s[64];
   snprintf(s, sizeof(s), "%f", n);

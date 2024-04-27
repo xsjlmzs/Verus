@@ -49,10 +49,11 @@ bool OpenFile(const std::string& filename, std::ifstream& file) {
 
 // ---------------------------- Class Configureation -------------------------------
 
-Configuration::Configuration(const std::string filename)
+Configuration::Configuration(const std::string spath, std::string ppath)
+    : servers_config_file_(spath), proxy_config_file_(ppath)
 {
   LOG(INFO) << "Configure Construct Start";
-  ReadFromFile(filename);
+  ReadServers(servers_config_file_);
   replica_num_ = all_nodes_.rbegin()->second->replica_id + 1;
   if (all_nodes_.size() % replica_num_ != 0)
   {
@@ -61,6 +62,8 @@ Configuration::Configuration(const std::string filename)
   replica_size_ = all_nodes_.size() / replica_num_;
   LOG(INFO) << "replica num  : " << replica_num_  ;
   LOG(INFO) << "replica size : " << replica_size_ ;
+
+  ReadProxy(proxy_config_file_);
 
   LOG(INFO) << "Configure Construct Finish";
 }
@@ -71,14 +74,15 @@ Configuration::~Configuration() {
     {
         delete iter->second;
     }
+    delete proxy_;
     LOG(INFO) << "Configure Deconstruct Finish";
 }
 
-int Configuration::ReadFromFile(const std::string& filename)
+int Configuration::ReadServers(const std::string& path)
 {
     std::ifstream file;
-    if (!OpenFile(filename, file)) {
-        LOG(ERROR) << "Open File " << filename << "Failed";
+    if (!OpenFile(path, file)) {
+        LOG(ERROR) << "Open File " << path << "Failed";
         return -1;
     }
 
@@ -106,12 +110,39 @@ int Configuration::ReadFromFile(const std::string& filename)
     return 0;
 }
 
+int Configuration::ReadProxy(const std::string& path)
+{
+    std::ifstream file;
+    if (!OpenFile(path, file))
+    {
+        LOG(ERROR) << "Open File " << path << "Failed";
+        return -1;
+    }
+    
+    std::string line;
+    while (std::getline(file, line)) {
+        if (line.empty() || line[0]=='#') {
+            continue;
+        }
+        
+        char buf[128];
+        Node *node = new Node();
+        sscanf(line.c_str(), "proxy%d=%s", &node->node_id, buf);
+        
+        char* tok;
+        node->host = strtok_r(buf, ":", &tok);
+        node->port = atoi(strtok_r(NULL, ":", &tok));
+
+        proxy_ = node;
+    }
+    return 0;
+}
 // ---------------------------- Class Connection -------------------------------
 
-Connection::Connection(Configuration* config, uint32 node_id) : config_(config), cxt_(), deconstructor_invoked_(false) {
+Connection::Connection(Configuration* config, uint32 port) : config_(config), cxt_(), deconstructor_invoked_(false) {
 
     LOG(INFO) << "Connection Start Init";
-    remote_port_ = config_->all_nodes_[node_id]->port;
+    remote_port_ = port;
     remote_in_ = new zmqpp::socket(cxt_, zmqpp::socket_type::pull);
     std::string remote_endpoint = "tcp://*:" + std::to_string(remote_port_);
     remote_in_->bind(remote_endpoint);
@@ -129,13 +160,11 @@ Connection::Connection(Configuration* config, uint32 node_id) : config_(config),
     // <node_id, Node*>
     for (std::map<uint32, Node*>::const_iterator it = config->all_nodes_.begin();
          it != config->all_nodes_.end(); it++) {
-        if (node_id != it->first) {
-            remote_out_[it->first] = new zmqpp::socket(cxt_,zmqpp::socket_type::push);
-            std::string endpoint = "tcp://" + it->second->host + ':' + std::to_string(it->second->port); 
-            remote_out_[it->first]->connect(endpoint); 
-            zmq_setsockopt(remote_out_[it->first], ZMQ_LINGER, "", 5);
-            // zmq_setsockopt(remote_out_[it->first], ZMQ_SNDHWM, "", 10000);
-        }
+        remote_out_[it->first] = new zmqpp::socket(cxt_,zmqpp::socket_type::push);
+        std::string endpoint = "tcp://" + it->second->host + ':' + std::to_string(it->second->port); 
+        remote_out_[it->first]->connect(endpoint); 
+        zmq_setsockopt(remote_out_[it->first], ZMQ_LINGER, "", 5);
+        // zmq_setsockopt(remote_out_[it->first], ZMQ_SNDHWM, "", 10000);
     }
 
 

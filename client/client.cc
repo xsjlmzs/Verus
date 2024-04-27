@@ -141,12 +141,13 @@ void Client::LoadConfig(std::string filename)
 
 void Client::NewTxn(PB::Txn** txn, uint64 txn_id)
 {
-    uint32 parition_id = uint32(rand())%config_->replica_size_;
-    if (config_->replica_size_ > 1 && (uint32)(rand() % 100) < mp_percent_)
+    int nparts = config_->replica_size_;
+    uint32 parition_id = uint32(rand()) % nparts;
+    if (nparts > 1 && (uint32)(rand() % 100) < mp_percent_)
     {
         uint64 other;
         do {
-            other = (uint32) (rand() % config_->replica_size_);
+            other = (uint32) (rand() % nparts);
         } while (other == parition_id);
         *txn = tpcc.TpccTxnMP(txn_id, parition_id, other);
     }
