@@ -47,9 +47,9 @@ void Proxy::Run()
 {
     std::string channel = "Proxy";
     conn_->NewChannel(channel);
-    std::vector<PB::Txn*> subtxns(config_->replica_size_, nullptr);
     while (!deconstructor_invoked_)
     {
+        std::vector<PB::MessageProto> subtxns(config_->replica_size_);
         PB::Txn* txn = nullptr;
         client_->NewTxn(&txn, GenerateTid());
         bool read_only_txn = true;
@@ -58,42 +58,26 @@ void Proxy::Run()
         for (size_t i = 0; i < txn->commands_size(); i++)
         {
             PB::Command cmd = txn->commands(i);
-            if (cmd.type() == PB::OpType::PUT)
-            {
-                read_only_txn = false;
-            }
             uint32 server_id = Hash(cmd.key());
-            if (subtxns[server_id] == nullptr)
-            {
-                subtxns[server_id] = new PB::Txn();
-                subtxns[server_id]->set_txn_id(txn->txn_id());
-                subtxns[server_id]->set_status(PB::TxnStatus::PEND);
-            }
-            subtxns[server_id]->mutable_commands()->Add(std::move(cmd));
+
+            subtxns[server_id].mutable_single_txn()->set_txn_id(txn->txn_id());
+            subtxns[server_id].mutable_single_txn()->mutable_commands()->Add(std::move(cmd));
             related_nodes.insert(server_id);
         }
-
         // send
         for (size_t i = 0; i < subtxns.size(); i++)
         {
-            if (subtxns[i] != nullptr)
+            if (subtxns[i].single_txn().commands_size() > 0)
             {
                 for (uint32 node_id : related_nodes)
                 {
-                    txn->add_related_nodes(node_id);
+                    subtxns[i].mutable_single_txn()->add_related_nodes(node_id);
                 }
-                txn->add_received_nodes(i);
-                
-                PB::MessageProto mp;
-                mp.set_type(PB::MessageProto_MessageType_SINGLETXN);
-                mp.set_allocated_single_txn(subtxns[i]);
-                // delete subtxns[i];
-                subtxns[i] == nullptr;
-                mp.set_src_node_id(proxy_id_);
-                mp.set_src_channel(channel);
-                mp.set_dest_node_id(i);
-                mp.set_dest_channel(channel);
-                conn_->Send(mp);
+                subtxns[i].set_type(PB::MessageProto_MessageType_SINGLETXN);
+                subtxns[i].set_src_node_id(proxy_id_);
+                subtxns[i].set_dest_node_id(i);
+                subtxns[i].set_dest_channel(channel);
+                conn_->Send(subtxns[i]);
             }
         }
     }
@@ -101,8 +85,8 @@ void Proxy::Run()
 
 uint64 Proxy::GenerateTid()
 {
-    uint64 tid = GetTime();
-    return tid;
+    static uint64 counter = 0;
+    return counter++;
 }
 
 void Proxy::Join()

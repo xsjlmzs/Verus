@@ -45,7 +45,7 @@ namespace taas
     {
         storage_->LockRead();
         txn->set_status(PB::TxnStatus::EXEC);
-        for (size_t i = 0; i < txn->commands().size(); i++)
+        for (size_t i = 0; i < txn->commands_size(); i++)
         {
             const PB::Command& stat = txn->commands(i);
             if (stat.type() == PB::OpType::GET)
@@ -65,8 +65,11 @@ namespace taas
         txn->set_end_ts(GetTime());
         txn->set_end_epoch(epoch_manager_->GetPhysicalEpoch());
         txn->set_status(PB::TxnStatus::PRECOMMIT);
-        std::unique_lock<std::mutex> lk(mutexes_local_txns_[cur_epoch_mod]);
-        local_txns_[cur_epoch_mod].push_back(*txn);
+        {
+            std::unique_lock<std::mutex> lk(mutexes_local_txns_[cur_epoch_mod]);
+            local_txns_[cur_epoch_mod].push_back(*txn);
+            delete txn;
+        }
     }
 
     void Server::HeartbeatAllServers()
@@ -107,46 +110,39 @@ namespace taas
 
     bool Server::WriteIntent(const PB::Txn& txn, uint64 index)
     {
-        for (const auto &stat : txn.commands())
+        for (const PB::Txn::KeyValue& kv : txn.write_set())
         {
-            if (stat.type() == PB::OpType::PUT)
+            if (crdt_map_[index].count(kv.key()))
             {
-                if (crdt_map_[index].count(stat.key()))
+                // exist earlier record
+                const Metadata& prev_data = crdt_map_[index][kv.key()];
+                const Metadata cur_data
                 {
-                    // exist earlier record
-                    const Metadata& prev_data = crdt_map_[index][stat.key()];
-                    const Metadata cur_data
+                    sen: txn.start_epoch(),
+                    rna: (uint64)txn.related_nodes_size(),
+                    csn: txn.txn_id()
+                };
+                if (prev_data.sen < txn.start_epoch())
+                {
+                    crdt_map_[index][kv.key()] = cur_data;
+                }
+                else if (prev_data.sen == txn.start_epoch())
+                {
+                    if (prev_data.rna > cur_data.rna)
                     {
-                        sen: txn.start_epoch(),
-                        rna: (uint64)txn.related_nodes_size(),
-                        csn: txn.txn_id()
-                    };
-                    if (prev_data.sen < txn.start_epoch())
-                    {
-                        crdt_map_[index][stat.key()] = cur_data;
+                        crdt_map_[index][kv.key()] = cur_data;
                     }
-                    else if (prev_data.sen == txn.start_epoch())
+                    else if (prev_data.rna == cur_data.rna)
                     {
-                        if (prev_data.rna > cur_data.rna)
+                        if (prev_data.csn > cur_data.csn)
                         {
-                            crdt_map_[index][stat.key()] = cur_data;
-                        }
-                        else if (prev_data.rna == cur_data.rna)
-                        {
-                            if (prev_data.csn > cur_data.csn)
-                            {
-                                crdt_map_[index][stat.key()] = cur_data;
-                            }
-                            else
-                            {
-                                return false;
-                            }
-                            
+                            crdt_map_[index][kv.key()] = cur_data;
                         }
                         else
                         {
                             return false;
                         }
+                        
                     }
                     else
                     {
@@ -155,15 +151,19 @@ namespace taas
                 }
                 else
                 {
-                    const Metadata cur_data
-                    {
-                        sen: txn.start_epoch(),
-                        rna: (uint64)txn.related_nodes_size(),
-                        csn: txn.txn_id()
-                    };
-                    // write intent successfully
-                    crdt_map_[index][stat.key()] = cur_data;
+                    return false;
                 }
+            }
+            else
+            {
+                const Metadata cur_data
+                {
+                    sen: txn.start_epoch(),
+                    rna: (uint64)txn.related_nodes_size(),
+                    csn: txn.txn_id()
+                };
+                // write intent successfully
+                crdt_map_[index][kv.key()] = cur_data;
             }
         }
         return true;
@@ -232,6 +232,7 @@ namespace taas
     void Server::Run()
     {
         launch_ts_ = GetTime();
+        conn_->NewChannel("Proxy");
         while (!deconstructor_invoked_)
         {
             uint64 start_time = GetTime();
@@ -250,11 +251,16 @@ namespace taas
             
             // start a epoch
             LOG(INFO) << "------ epoch "<< cur_epoch << " start ------";
-            if (!local_txns_[cur_epoch_mod].empty())
+            // clear old data
             {
+                crdt_map_[cur_epoch_mod].clear();
                 local_txns_[cur_epoch_mod].clear();
+                remote_txns_[cur_epoch_mod].clear();
+
+                commit_txns_[cur_epoch_mod].clear();
+                abort_txns_[cur_epoch_mod].clear();
             }
-            
+            uint32 cnt = 0;
             while (GetTime() - start_time < epoch_manager_->GetEpochDuration())
             {
                 if (local_txns_[cur_epoch_mod].size() > limit_txns_)
@@ -263,20 +269,27 @@ namespace taas
                     usleep(100);
                     continue;
                 }
-                PB::MessageProto *received_txn = nullptr;
-                conn_->GetMessage("Proxy", received_txn);
-                received_txn->mutable_single_txn()->set_status(PB::TxnStatus::PEND);
-                received_txn->mutable_single_txn()->set_start_ts(GetTime());
-                thread_pool_->submit(std::bind(&Server::Execute, this, received_txn->mutable_single_txn(), cur_epoch_mod));
+                PB::MessageProto received_txn;
+                if (conn_->GetMessage("Proxy", &received_txn))
+                {
+                    cnt ++;
+                    received_txn.mutable_single_txn()->set_status(PB::TxnStatus::PEND);
+                    received_txn.mutable_single_txn()->set_start_ts(GetTime());
+                    // LOG(INFO) << "debug" << received_txn.single_txn().txn_id();
+                    PB::Txn *txn = new PB::Txn(received_txn.single_txn());
+                    std::thread t(&Server::Execute, this, txn, cur_epoch_mod);
+                    t.detach(); // 独自执行
+                }
             }
             epoch_manager_->AddPhysicalEpoch();
-            LOG(INFO) << "epoch : " << cur_epoch << " " << local_txns_[cur_epoch].size() << " txns collected, start distribute and merge";
+            LOG(INFO) << "epoch : " << cur_epoch << " " << "received " << cnt << " txns";
+            LOG(INFO) << "epoch : " << cur_epoch << " " << local_txns_[cur_epoch_mod].size() << " txns done";
             // process with all other shard peer
             // worker
             thread_pool_->submit(std::bind(&Server::Work, this, cur_epoch));
             LOG(INFO) << "------ epoch "<< cur_epoch << " end ------";
-
         }
+        conn_->DeleteChannel("Proxy");
     }
 
     // // deprecated
@@ -361,23 +374,22 @@ namespace taas
     // send in-region subtxn to all other region's peer node
     void  Server::Replicate(uint64 epoch)
     {
-        std::string replicate_channel = std::string("replicate_") + std::to_string(epoch);
+        std::string replicate_channel = std::string("Replicate_") + std::to_string(epoch);
         conn_->NewChannel(replicate_channel);
         // replicate local txn to other replicas
         PB::MessageProto local_txns_mp;
         local_txns_mp.set_type(PB::MessageProto::BATCHTXNS);
         local_txns_mp.mutable_batch_txns()->set_commit_epoch(epoch);
         uint64 epoch_mod = epoch % thread_num;
-        for (const PB::Txn& txn : local_txns_[epoch_mod])
+        for (PB::Txn txn : local_txns_[epoch_mod])
         {
-            local_txns_mp.mutable_batch_txns()->add_txns()->CopyFrom(txn);
+            local_txns_mp.mutable_batch_txns()->mutable_txns()->Add(std::move(txn));
         }
         for (size_t i = 0; i < config_->replica_num_; i++)
         {
             if (i != replica_id_)
             {
                 local_txns_mp.set_src_node_id(server_id_);
-                local_txns_mp.set_src_channel(replicate_channel);
                 local_txns_mp.set_dest_node_id(i * config_->replica_size_ + parition_id_);
                 local_txns_mp.set_dest_channel(replicate_channel);
                 conn_->Send(local_txns_mp);
@@ -385,12 +397,12 @@ namespace taas
         }
         // wait for other replica's broadcast
         uint32 have_replicated = 1; // iteself
-        PB::MessageProto* msg = nullptr;
+        PB::MessageProto msg;
         while (have_replicated < config_->replica_num_)
         {
-            if (conn_->GetMessage(replicate_channel, msg))
+            if (conn_->GetMessage(replicate_channel, &msg))
             {
-                for (const PB::Txn& txn : msg->batch_txns().txns())
+                for (const PB::Txn& txn : msg.batch_txns().txns())
                 {
                     remote_txns_[epoch_mod].push_back(txn);
                 }
@@ -400,13 +412,12 @@ namespace taas
                 usleep(100);
             }
         }
+        conn_->DeleteChannel(replicate_channel);
     }
 
     // process crdt merge
     void Server::Merge(uint64 epoch)
     {
-        std::string channel = "merge_" + std::to_string(epoch);
-        conn_->NewChannel(channel);
         // write intent for local txns and remote txns
         uint64 epoch_mod = epoch % thread_num;
         for (PB::Txn& txn : local_txns_[epoch_mod])
@@ -433,6 +444,7 @@ namespace taas
         }
 
         // validate write set
+        // LOG(INFO) << "local txns size" << local_txns_[epoch_mod].size();
         for (PB::Txn& txn : local_txns_[epoch_mod])
         {
             if (txn.status() == PB::ABORT)
@@ -486,7 +498,8 @@ namespace taas
         }
         
         // send all txn's result
-        std::string channel = "validate_" + std::to_string(epoch);
+        std::string channel = "Validate_" + std::to_string(epoch);
+        conn_->NewChannel(channel);
         int related_nodes_size = 0;
         for (size_t i = 0; i < send_buf.size(); i++)
         {
@@ -532,7 +545,7 @@ namespace taas
                 }
             }
         }
-
+        conn_->DeleteChannel(channel);
         // process waiting txns
         for (const auto &kv : commit_txns_[epoch_mod])
         {
@@ -572,109 +585,73 @@ namespace taas
         }
         
     }
-
-    bool Server::CheckAtomic(const PB::Txn& txn, bool committed)
-    {
-        int total_write_cnt = 0, success_write_cnt = 0;
-        for (auto &&stat : txn.commands())
-        {
-            if (stat.type() == PB::OpType::PUT)
-            {
-                total_write_cnt ++;
-                std::string query_val =  storage_->get(stat.key());
-                if (query_val == stat.value())
-                {
-                    success_write_cnt ++;
-                }
-            }
-        }
-        if (committed)
-            return total_write_cnt == success_write_cnt ? true : false;
-        else
-            return success_write_cnt ? false : true;
-    }
     void Server::PrintStatistic(uint32 epoch)
     {
-        std::string filename = "./report." + UInt32ToString(server_id_) + "." + UInt32ToString(epoch);
+        uint64 epoch_mod = epoch % thread_num;
+        std::string filename = "./report." + UInt32ToString(server_id_) + "." + UInt64ToString(epoch);
         std::ofstream file(filename);
         std::string report;
-        uint64 cur_lantency = 0;
-        uint32 cur_txn_cnt = 0;
-        uint32 abort_cnt = 0;
-        for (size_t i = 0; i < local_txns_[epoch].size(); i++)
+        double abort_txn_cnt = 0.0;
+        double commit_txn_cnt = 0.0;
+        double latency = 0.0;
+        for (const auto &kv : commit_txns_[epoch_mod])
         {
-            abort_cnt ++;
-            if (local_txns_[epoch][i].status() == PB::TxnStatus::ABORT)
-                continue;
-            abort_cnt --;
-            uint64 single_latency = local_txns_[epoch][i].end_ts() - local_txns_[epoch][i].start_ts();
-            cur_lantency += single_latency;
-            cur_txn_cnt ++;
+            const PB::Txn& txn = kv.second;
+            if (txn.status() == PB::TxnStatus::COMMIT)
+            {
+                commit_txn_cnt += 1.0/double(txn.related_nodes_size());
+                latency += txn.end_ts() - txn.start_ts();
+            }
+            else if(txn.status() == PB::TxnStatus::ABORT)
+            {
+                abort_txn_cnt += 1.0/double(txn.related_nodes_size());
+            }
         }
-        LOG(ERROR) << "epoch: " << epoch << " abort_cnt: " << abort_cnt << " commit_cnt: " << cur_txn_cnt;
+        for (const auto &kv : abort_txns_[epoch_mod])
+        {
+            const PB::Txn& txn = kv.second;
+            abort_txn_cnt += 1.0/double(txn.related_nodes_size());
+        }
+        
+        LOG(ERROR) << "epoch: " << epoch << " commit_txn_cnt: " << commit_txn_cnt << " abort_txn_cnt: " << abort_txn_cnt;
         {
             std::lock_guard<std::mutex> lock(cnt_mutex_);
-            done_txn_cnt_ += cur_txn_cnt;
-            done_total_latency_ += cur_lantency;
+            total_txn_cnt_ += commit_txn_cnt;
+            total_latency_ += latency;
             // txns per second
-            report.append("avg_throught : " + UInt64ToString(done_txn_cnt_ * 1000L / (GetTime() - launch_ts_)) + "\n");
-            report.append("avg_lantency : " + UInt64ToString(done_total_latency_ / done_txn_cnt_) + "\n");
+            report.append("avg_throught : " + DoubleToString(total_txn_cnt_ * 1000.0 / double(GetTime() - launch_ts_)) + "\n");
+            report.append("avg_lantency : " + DoubleToString(total_latency_ / total_txn_cnt_) + "\n");
         }
-
         file << report;
     }
     // worker
     void Server::Work(uint64 epoch)
     {
-        std::vector<std::pair<uint64, uint64>> latencies; // <begin ts, end ts>
-        // Exec Read instantly subtxn in shard node
-        // process replicate & collect all out-region subtxns
-        LOG(INFO) << "epoch : " << epoch << " Start Replicate";
-        // replicate subtxn and share 
-        Replicate(epoch);
+        if (config_->replica_num_ > 1)
+        {
+            // process replicate & collect all out-region subtxns
+            LOG(INFO) << "epoch : " << epoch << " Start Replicate";
+            // replicate subtxn and share 
+            Replicate(epoch);
+            LOG(INFO) << "epoch : " << epoch << " Replicate Finish";
+        }
         // determinstic process merge
         // return value : kvs all will write in db 
         LOG(INFO) << "epoch : " << epoch << " Start Merge";
-        Merge( epoch);
+        Merge(epoch);
         LOG(INFO) << "epoch : " << epoch << " Merge Finish";
-        // atomic batch write in
-        for (size_t i = 0; i < local_txns_[epoch].size(); i++)
-            local_txns_[epoch][i].set_end_ts(GetTime());
-        
+        LOG(INFO) << "commitTxns " << commit_txns_[epoch%thread_num].size();
+        LOG(INFO) << "abortTxns " << abort_txns_[epoch%thread_num].size();
+        // validate atomic
+        LOG(INFO) << "epoch : " << epoch << " Start Validate";
+        ValidateAtomic(epoch);
+        LOG(INFO) << "epoch : " << epoch << " Validate Finish";
+
+        EpochWrite(epoch);
         PrintStatistic(epoch);
         // Check Correctness
         #ifdef CHECK_ATOMIC
-        std::set<uint64> committed_tid_set;
-        for (size_t i = 0; i < committable_subtxns->size(); i++)
-        {
-            const PB::Txn& txn = committable_subtxns->at(i);
-            committed_tid_set.insert(txn.txn_id());
-        }
-        bool atomic_test = true;
-        for (auto &&subtxns : *inregion_subtxns)
-        {
-            for (auto &&subtxn : subtxns.batch_txns().txns())
-            {
-                bool part_res = CheckAtomic(subtxn, committed_tid_set.count(subtxn.txn_id()));
-                atomic_test &= part_res;
-                if (!part_res && committed_tid_set.count(subtxn.txn_id()))
-                    LOG(ERROR) << "epoch : " << epoch << " committed but can't get again";
-                else if(!part_res)
-                    LOG(ERROR) << "epoch : " << epoch << " abort but can still get" << committed_tid_set.count(subtxn.txn_id());
-            }
-        }
-        if (!atomic_test)
-            LOG(ERROR) << "epoch : " << epoch << " inregion check failed";  
-        for (auto &&subtxns : *outregion_subtxns)
-        {
-            for (auto &&subtxn : subtxns.batch_txns().txns())
-            {
-                bool part_res = CheckAtomic(subtxn, committed_tid_set.count(subtxn.txn_id()));
-                atomic_test &= part_res;
-            }
-        }
-        if (!atomic_test)
-            LOG(ERROR) << "epoch : " << epoch << " cant pass the subtxn's atomic test";   
+
         #endif
 
         epoch_manager_->AddCommittedEpoch();
