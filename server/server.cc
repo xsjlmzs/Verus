@@ -325,6 +325,7 @@ namespace taas
         {
             if (conn_->GetMessage(replicate_channel, &msg))
             {
+                have_replicated++;
                 for (const PB::Txn& txn : msg.batch_txns().txns())
                 {
                     remote_txns_[epoch_mod].push_back(txn);
@@ -482,24 +483,6 @@ namespace taas
             }
         }
         conn_->DeleteChannel(channel);
-        // enqueue waiting txns
-        for (const auto &kv : commit_txns_[epoch_mod])
-        {
-            const PB::Txn& txn = kv.second;
-            if (txn.status() != PB::TxnStatus::ABORT)
-            {
-                if (txn.received_nodes_size() < txn.related_nodes_size())
-                {
-                    std::unique_lock<std::shared_mutex> lk(mutex_wait_);
-                    wait_txns_.push_back(txn);
-                }
-            }
-        }
-        {
-            std::unique_lock<std::mutex> lk(cv_process_mutex_);
-            epoch_manager_->AddProcessedEpoch();
-            cv_process_.notify_all();
-        }
     }
 
     void Server::EpochWrite(uint64 epoch)
@@ -523,6 +506,29 @@ namespace taas
                 }
                 storage_->UnlockWrite();
             }
+        }
+    }
+
+    void Server::EnqueWaitTxns(uint64 epoch)
+    {
+        uint64 epoch_mod = epoch % buffer_size;
+        // enqueue waiting txns
+        for (const auto &kv : commit_txns_[epoch_mod])
+        {
+            const PB::Txn& txn = kv.second;
+            if (txn.status() != PB::TxnStatus::ABORT)
+            {
+                if (txn.received_nodes_size() < txn.related_nodes_size())
+                {
+                    std::unique_lock<std::shared_mutex> lk(mutex_wait_);
+                    wait_txns_.push_back(txn);
+                }
+            }
+        }
+        {
+            std::unique_lock<std::mutex> lk(cv_process_mutex_);
+            epoch_manager_->AddProcessedEpoch();
+            cv_process_.notify_all();
         }
     }
 
@@ -595,9 +601,13 @@ namespace taas
         // LOG(INFO) << "commitTxns " << commit_txns_[epoch % buffer_size].size();
         // LOG(INFO) << "abortTxns " << abort_txns_[epoch % buffer_size].size();
         // validate atomic
-        LOG(INFO) << "epoch : " << epoch << " Start Validate";
-        ValidateAtomic(epoch);
-        LOG(INFO) << "epoch : " << epoch << " Validate Finish";
+        if (config_->replica_size_ > 1)
+        {
+            LOG(INFO) << "epoch : " << epoch << " Start Validate";
+            ValidateAtomic(epoch);
+            LOG(INFO) << "epoch : " << epoch << " Validate Finish";
+        }
+        EnqueWaitTxns(epoch);
 
         // EpochWrite(epoch);
         LOG(INFO) << "epoch : " << epoch << " Write Finish";

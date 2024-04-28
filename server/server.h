@@ -86,6 +86,7 @@ namespace taas
         void ValidateAtomic(uint64 epoch);
         void EpochWrite(uint64 epoch);
         void CleanBuffer(uint64 epoch);
+        void EnqueWaitTxns(uint64 epoch);
         void PrintStatistic(uint32 epoch);
 
         std::thread worker_;
