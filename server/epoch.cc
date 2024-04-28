@@ -13,6 +13,7 @@ namespace taas
     {
         std::atomic_init(&cur_epoch_, 1);
         std::atomic_init(&committed_epoch_, 0);
+        std::atomic_init(&processed_epoch_, 0);
         deconstructor_invoked_ = false;
     }
 
@@ -52,6 +53,14 @@ namespace taas
     double EpochManager::GetEpochDuration()
     {
         return epoch_duration_;
+    }
+    void EpochManager::AddProcessedEpoch()
+    {
+        processed_epoch_++;
+    }
+    uint64 EpochManager::GetProcessedEpoch()
+    {
+        return processed_epoch_;
     }
 } // namespace taas
 

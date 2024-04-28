@@ -56,7 +56,6 @@ namespace taas
             }
             else if (stat.type() == PB::OpType::PUT)
             {
-
                 PB::Txn::KeyValue* kv = txn->add_write_set();
                 kv->set_key(stat.key());
                 kv->set_value(stat.value());
@@ -64,18 +63,16 @@ namespace taas
         }
         storage_->UnlockRead();
         txn->set_end_ts(GetTime());
-        txn->set_end_epoch(epoch_manager_->GetPhysicalEpoch());
         txn->set_status(PB::TxnStatus::PRECOMMIT);
         {
+            std::unique_lock<std::mutex> lk_epoch(add_epoch_mutex_);
             uint64 cur_epoch = epoch_manager_->GetPhysicalEpoch();
+            txn->set_end_epoch(cur_epoch);
             uint64 epoch_mod = cur_epoch % buffer_size;
-            std::unique_lock<std::mutex> lk(mutexes_local_txns_[epoch_mod]);
-            if (cur_epoch == epoch)
-            {
-                local_txns_[epoch_mod].push_back(*txn);
-            }
-            delete txn;
+            std::unique_lock<std::mutex> lk_vector(mutexes_local_txns_[epoch_mod]);
+            local_txns_[epoch_mod].push_back(*txn);
         }
+        delete txn;
     }
 
     void Server::HeartbeatAllServers()
@@ -248,8 +245,8 @@ namespace taas
             // reach max running epoch, exit
             if (cur_epoch == limit_epoch_+1)
             {
-                std::unique_lock<std::mutex> lk(cv_mutex_);
-                cv_.wait(lk, [this]{return this->epoch_manager_->GetCommittedEpoch() == this->limit_epoch_; });
+                std::unique_lock<std::mutex> lk(cv_commit_mutex_);
+                cv_commit_.wait(lk, [this]{return this->epoch_manager_->GetCommittedEpoch() == this->limit_epoch_; });
                 lk.unlock();
                 thread_pool_->shutdown();
                 break;
@@ -257,15 +254,6 @@ namespace taas
             
             // start a epoch
             LOG(INFO) << "------ epoch "<< cur_epoch << " start ------";
-            // // clear old data
-            // {
-            //     crdt_map_[cur_epoch_mod].clear();
-            //     local_txns_[cur_epoch_mod].clear();
-            //     remote_txns_[cur_epoch_mod].clear();
-
-            //     commit_txns_[cur_epoch_mod].clear();
-            //     abort_txns_[cur_epoch_mod].clear();
-            // }
             uint32 cnt = 0;
             while (GetTime() - start_time < epoch_manager_->GetEpochDuration())
             {
@@ -288,8 +276,14 @@ namespace taas
                 }
             }
             LOG(INFO) << "epoch : " << cur_epoch << " " << "received " << cnt << " txns";
-            LOG(INFO) << "epoch : " << cur_epoch << " " << local_txns_[cur_epoch_mod].size() << " txns done";
-            epoch_manager_->AddPhysicalEpoch();
+            {
+                std::unique_lock<std::mutex> lk_epoch(add_epoch_mutex_);
+                epoch_manager_->AddPhysicalEpoch();
+            }
+            {
+                std::unique_lock<std::mutex> lk_vector(mutexes_local_txns_[cur_epoch_mod]);
+                LOG(INFO) << "epoch : " << cur_epoch << " " << local_txns_[cur_epoch_mod].size() << " txns done";
+            }
             // process with all other shard peer
             // worker
             usleep(1000);
@@ -298,85 +292,6 @@ namespace taas
         }
         conn_->DeleteChannel("Proxy");
     }
-
-    // // deprecated
-    // std::vector<PB::MessageProto>* Server::Distribute(const std::vector<PB::Txn>& local_txns, uint64 epoch)
-    // {
-    //     std::string channel = "Shard_" + std::to_string(epoch);
-    //     conn_->NewChannel(channel);
-    //     std::map<uint32, PB::MessageProto> batch_subtxns;
-    //     // prepare msg for sending to in region nodes
-    //     for (std::map<uint32, Node*>::const_iterator iter = config_->all_nodes_.begin(); iter != config_->all_nodes_.end(); iter++)
-    //     {
-    //         if (iter->second->replica_id != config_->replica_id_)
-    //            continue;
-    //         uint32 remote_server_id = iter->first;
-    //         PB::MessageProto mp;
-    //         mp.set_src_node_id(server_id_);
-    //         mp.set_dest_node_id(remote_server_id);
-    //         mp.set_dest_channel(channel);
-    //         mp.set_type(PB::MessageProto_MessageType_BATCHTXNS);
-    //         batch_subtxns[remote_server_id] = mp;
-    //     }
-
-    //     // split txn into subtxns
-    //     for (size_t i = 0; i < local_txns.size(); i++)
-    //     {
-    //         const PB::Txn& txn = local_txns.at(i);
-    //         std::map<uint32, PB::Txn> subtxns; // <node_id, subtxn>
-    //         for (size_t j = 0; j < txn.commands_size(); j++)
-    //         {
-    //             const PB::Command& stat = txn.commands(j);
-    //             // find responsible node for the key in region
-    //             int partition_id = config_->LookupPartition(stat.key());
-    //             uint32 machine_id = config_->LookupMachineID(partition_id);
-    //             if (subtxns.count(machine_id) == 0)
-    //             {
-    //                 PB::Txn subtxn;
-    //                 subtxn.set_txn_id(txn.txn_id());
-    //                 subtxn.set_start_epoch(txn.start_epoch());
-    //                 subtxn.set_status(PB::TxnStatus::PEND);
-    //                 subtxns[machine_id] = subtxn;
-    //             }
-    //             subtxns[machine_id].add_commands()->CopyFrom(stat);
-    //         }
-
-    //         // compile subtxns to batch
-    //         for(std::map<uint32, PB::Txn>::iterator iter = subtxns.begin(); iter != subtxns.end(); ++iter)
-    //         {
-    //             uint32 remote_server_id = iter->first;
-    //             const PB::Txn& subtxn = iter->second;
-    //             batch_subtxns[remote_server_id].mutable_batch_txns()->add_txns()->CopyFrom(subtxn);
-    //         }   
-    //     }
-
-    //     // send batch_subtxns to all in-region peers
-    //     for (std::map<uint32, PB::MessageProto>::iterator iter = batch_subtxns.begin(); iter != batch_subtxns.end(); ++iter)
-    //     {
-    //         // iter->second.set_debug_info(std::to_string(epoch));
-    //         conn_->Send(iter->second);
-    //     }
-    //     LOG(INFO) << "epoch : " << epoch << " have sent " << batch_subtxns.size() << " Distribute() msgs and barrier";
-    //     // barrier : wait for all other msg arrive
-    //     int recv_msg_cnt = 0;
-    //     PB::MessageProto recv_subtxn;
-    //     std::vector<PB::MessageProto>* inregion_subtxns = new std::vector<PB::MessageProto>();
-    //     while (recv_msg_cnt < config_->replica_size_)
-    //     {
-    //         if(conn_->GetMessage(channel, &recv_subtxn))
-    //         {
-    //             recv_msg_cnt++;
-    //             inregion_subtxns->push_back(recv_subtxn);
-    //         }
-    //         else
-    //         {
-    //             usleep(100);
-    //         }
-    //     }
-    //     LOG(INFO) << "epoch : " << epoch << " Distribute() barrier end"; 
-    //     conn_->DeleteChannel(channel);
-    //     return inregion_subtxns;
-    // }
 
     // send in-region subtxn to all other region's peer node
     void  Server::Replicate(uint64 epoch)
@@ -440,8 +355,16 @@ namespace taas
             if (!res)
                 txn.set_status(PB::TxnStatus::ABORT);
         }
-        // wait & write intent for WaitTxns
+        // wait & write intent for WaitTxns if mul-replica
+        
+        if (config_->replica_num_ > 1)
         {
+            // wait until last epoch's write completed
+            {
+                std::unique_lock<std::mutex> lk(cv_process_mutex_);
+                cv_process_.wait(lk, [this, epoch]{return this->epoch_manager_->GetProcessedEpoch() == epoch-1; });
+                lk.unlock();
+            }
             std::shared_lock<std::shared_mutex> lk(mutex_wait_);
             for (PB::Txn& txn: wait_txns_)
             {
@@ -533,7 +456,7 @@ namespace taas
 
         // receive related nodes's msg
         int received_nodes_size = 0;
-        PB::MessageProto* msg = nullptr;
+        PB::MessageProto* msg = new PB::MessageProto();
         while (received_nodes_size < related_nodes_size)
         {
             if (conn_->GetMessage(channel, msg))
@@ -552,9 +475,13 @@ namespace taas
                         iter->second.set_status(PB::TxnStatus::ABORT);
                 }
             }
+            else
+            {
+                sleep(100);
+            }
         }
         conn_->DeleteChannel(channel);
-        // process waiting txns
+        // enqueue waiting txns
         for (const auto &kv : commit_txns_[epoch_mod])
         {
             const PB::Txn& txn = kv.second;
@@ -567,14 +494,19 @@ namespace taas
                 }
             }
         }
+        {
+            std::unique_lock<std::mutex> lk(cv_process_mutex_);
+            epoch_manager_->AddProcessedEpoch();
+            cv_process_.notify_all();
+        }
     }
 
     void Server::EpochWrite(uint64 epoch)
     {
         // wait until last epoch's write completed
         {
-            std::unique_lock<std::mutex> lk(cv_mutex_);
-            cv_.wait(lk, [this, epoch]{return this->epoch_manager_->GetCommittedEpoch() == epoch-1; });
+            std::unique_lock<std::mutex> lk(cv_commit_mutex_);
+            cv_commit_.wait(lk, [this, epoch]{return this->epoch_manager_->GetCommittedEpoch() == epoch-1; });
             lk.unlock();
         }
         uint64 epoch_mod = epoch % buffer_size;
@@ -591,8 +523,19 @@ namespace taas
                 storage_->UnlockWrite();
             }
         }
-        
     }
+
+    void Server::CleanBuffer(uint64 epoch)
+    {
+        uint64 epoch_mod = epoch % buffer_size;
+        crdt_map_[epoch_mod].clear();
+        local_txns_[epoch_mod].clear();
+        commit_txns_[epoch_mod].clear();
+        commit_txns_[epoch_mod].clear();
+        if (config_->replica_num_ > 1)
+            remote_txns_[epoch_mod].clear();
+    }
+
     void Server::PrintStatistic(uint32 epoch)
     {
         uint64 epoch_mod = epoch % buffer_size;
@@ -656,14 +599,18 @@ namespace taas
         LOG(INFO) << "epoch : " << epoch << " Validate Finish";
 
         EpochWrite(epoch);
+
+        
         PrintStatistic(epoch);
         // Check Correctness
         #ifdef CHECK_ATOMIC
 
         #endif
-
-        epoch_manager_->AddCommittedEpoch();
-        cv_.notify_all();
+        {
+            std::unique_lock<std::mutex> lk(cv_commit_mutex_);
+            epoch_manager_->AddCommittedEpoch();
+            cv_commit_.notify_all();
+        }
     }
 
     void Server::Join()

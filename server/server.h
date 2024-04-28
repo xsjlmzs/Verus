@@ -48,6 +48,7 @@ namespace taas
         std::vector<std::map<std::string, Metadata> > crdt_map_;
         // local txn <epoch-id, txns>
         std::mutex mutexes_local_txns_[64];
+        std::mutex add_epoch_mutex_;
         std::vector<std::vector<PB::Txn> > local_txns_;
         std::vector<std::vector<PB::Txn> > remote_txns_;
         // WaitTxns
@@ -84,6 +85,7 @@ namespace taas
         bool ValidateWS(const PB::Txn& txn, uint64 epoch);
         void ValidateAtomic(uint64 epoch);
         void EpochWrite(uint64 epoch);
+        void CleanBuffer(uint64 epoch);
         void PrintStatistic(uint32 epoch);
 
         std::thread worker_;
@@ -96,8 +98,11 @@ namespace taas
         uint64 limit_epoch_;
         uint32 limit_txns_;
 
-        std::mutex cv_mutex_;
-        std::condition_variable cv_;
+        std::mutex cv_commit_mutex_;
+        std::condition_variable cv_commit_;
+
+        std::mutex cv_process_mutex_;
+        std::condition_variable cv_process_;
 
     public:
         Server(Configuration *config, Connection *conn, uint32 node_id);
