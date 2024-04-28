@@ -21,7 +21,7 @@ private:
     uint32 proxy_id_;
     std::thread worker_;
 public:
-    Proxy(Configuration* config, Connection* conn, Client* client);
+    Proxy(Configuration* config, Connection* conn, Client* client, uint32 proxy_id);
     ~Proxy();
 
     void HeartBeat();

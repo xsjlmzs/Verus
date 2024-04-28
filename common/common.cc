@@ -54,12 +54,12 @@ Configuration::Configuration(const std::string spath, std::string ppath)
 {
   LOG(INFO) << "Configure Construct Start";
   ReadServers(servers_config_file_);
-  replica_num_ = all_nodes_.rbegin()->second->replica_id + 1;
-  if (all_nodes_.size() % replica_num_ != 0)
+  replica_num_ = all_servers_.rbegin()->second->replica_id + 1;
+  if (all_servers_.size() % replica_num_ != 0)
   {
     LOG(ERROR) << "replica size error";
   }
-  replica_size_ = all_nodes_.size() / replica_num_;
+  replica_size_ = all_servers_.size() / replica_num_;
   LOG(INFO) << "replica num  : " << replica_num_  ;
   LOG(INFO) << "replica size : " << replica_size_ ;
 
@@ -70,11 +70,14 @@ Configuration::Configuration(const std::string spath, std::string ppath)
 
 Configuration::~Configuration() {
     LOG(INFO) << "Configure Deconstruct Start";
-    for (std::map<uint32, Node*>::iterator iter = all_nodes_.begin(); iter != all_nodes_.end(); iter++)
+    for (std::map<uint32, Node*>::iterator iter = all_servers_.begin(); iter != all_servers_.end(); iter++)
     {
         delete iter->second;
     }
-    delete proxy_;
+    for (std::map<uint32, Node*>::iterator iter = all_proxies_.begin(); iter != all_proxies_.end(); iter++)
+    {
+        delete iter->second;
+    }
     LOG(INFO) << "Configure Deconstruct Finish";
 }
 
@@ -102,7 +105,7 @@ int Configuration::ReadServers(const std::string& path)
         node->host         =      strtok_r(NULL, ":", &tok);
         node->port         = atoi(strtok_r(NULL, ":", &tok));
 
-        all_nodes_[node->node_id] = node;
+        all_servers_[node->node_id] = node;
         // replica_size.find(node->replica_id) == replica_size.end() ? replica_size[node->replica_id] = 1 : replica_size[node->replica_id]++;
         // node_ids[std::pair<int,int>(node->replica_id, node->partition_id)] = node->node_id;
         // node->Print();
@@ -133,7 +136,7 @@ int Configuration::ReadProxy(const std::string& path)
         node->host = strtok_r(buf, ":", &tok);
         node->port = atoi(strtok_r(NULL, ":", &tok));
 
-        proxy_ = node;
+        all_proxies_[node->node_id] = node;
     }
     return 0;
 }
@@ -158,8 +161,8 @@ Connection::Connection(Configuration* config, uint32 port) : config_(config), cx
 
     // build socket
     // <node_id, Node*>
-    for (std::map<uint32, Node*>::const_iterator it = config->all_nodes_.begin();
-         it != config->all_nodes_.end(); it++) {
+    for (std::map<uint32, Node*>::const_iterator it = config->all_servers_.begin();
+         it != config->all_servers_.end(); it++) {
         remote_out_[it->first] = new zmqpp::socket(cxt_,zmqpp::socket_type::push);
         std::string endpoint = "tcp://" + it->second->host + ':' + std::to_string(it->second->port); 
         remote_out_[it->first]->connect(endpoint); 

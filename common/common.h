@@ -47,8 +47,8 @@ public:
     int replica_size_;
     int replica_num_;
 
-    std::map<uint32, Node*> all_nodes_; 
-    Node* proxy_;
+    std::map<uint32, Node*> all_servers_; 
+    std::map<uint32, Node*> all_proxies_;
 
     std::string servers_config_file_;
     std::string proxy_config_file_;

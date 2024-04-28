@@ -64,10 +64,10 @@ int main(int argc, char *argv[])
     LOG(INFO) << "percent_mp : " << percent_mp;
 
     std::unique_ptr<Configuration> config(new Configuration(server_path, proxy_path));
-    std::unique_ptr<Connection> conn(new Connection(config.get(), config->proxy_->port));
+    std::unique_ptr<Connection> conn(new Connection(config.get(), config->all_proxies_[proxy_id]->port));
     std::unique_ptr<Client> client(new Client(config.get(), percent_mp, warerhouse));
 
-    std::unique_ptr<Proxy>  proxy(new Proxy(config.get(), conn.get(), client.get()));
+    std::unique_ptr<Proxy>  proxy(new Proxy(config.get(), conn.get(), client.get(), proxy_id));
     proxy->Join();
 
     google::ShutdownGoogleLogging();

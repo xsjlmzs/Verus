@@ -1,10 +1,9 @@
 #include "proxy.h"
 
-Proxy::Proxy(Configuration* config, Connection* conn, Client* client)
-    : config_(config), conn_(conn),client_(client)
+Proxy::Proxy(Configuration* config, Connection* conn, Client* client, uint32 proxy_id)
+    : config_(config), conn_(conn),client_(client), proxy_id_(proxy_id)
 {
     deconstructor_invoked_ = false;
-    proxy_id_ = config_->proxy_->node_id;
 
     LOG(INFO) << "Proxy init Start";
     HeartBeat();
@@ -25,8 +24,8 @@ void Proxy::HeartBeat()
     sync_msg.set_src_channel(channel);
     sync_msg.set_src_node_id(proxy_id_);
 
-    for (std::map<uint32, Node*>::iterator iter = config_->all_nodes_.begin();
-        iter != config_->all_nodes_.end(); ++iter)
+    for (std::map<uint32, Node*>::iterator iter = config_->all_servers_.begin();
+        iter != config_->all_servers_.end(); ++iter)
     {
         uint32 remote_server_id = iter->first;
         sync_msg.set_dest_node_id(remote_server_id);
@@ -86,8 +85,9 @@ void Proxy::Run()
 
 uint64 Proxy::GenerateTid()
 {
-    static uint64 counter = 0;
-    return counter++;
+    static uint64 counter = proxy_id_;
+    counter += config_->all_proxies_.size();
+    return counter;
 }
 
 void Proxy::Join()

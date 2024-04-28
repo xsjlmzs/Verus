@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
     LOG(INFO) << "limit_txns : " << limit_txns;
     LOG(INFO) << "buffer_size : " << buffer_size;
     std::unique_ptr<Configuration> config(new Configuration(server_path, proxy_path));
-    std::unique_ptr<Connection> conn(new Connection(config.get(), config->all_nodes_[node_id]->port));
+    std::unique_ptr<Connection> conn(new Connection(config.get(), config->all_servers_[node_id]->port));
     Spin(1);
 
     std::unique_ptr<taas::Server> server(new taas::Server(config.get(), conn.get(), node_id));

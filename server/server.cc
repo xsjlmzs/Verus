@@ -84,8 +84,8 @@ namespace taas
         sync_msg.set_dest_channel(channel);
         sync_msg.set_src_channel(channel);
         sync_msg.set_src_node_id(server_id_);
-        for (std::map<uint32, Node*>::iterator iter = config_->all_nodes_.begin();
-            iter != config_->all_nodes_.end(); ++iter)
+        for (std::map<uint32, Node*>::iterator iter = config_->all_servers_.begin();
+            iter != config_->all_servers_.end(); ++iter)
         {
             uint32 remote_server_id = iter->first;
             if (remote_server_id == server_id_)
@@ -97,7 +97,7 @@ namespace taas
         // waiting for servers and proxy's replies
         int sync_server_cnt = 0;
         // sync_msg.Clear();
-        while (sync_server_cnt < config_->all_nodes_.size())
+        while (sync_server_cnt < config_->all_servers_.size())
         {
             if(conn_->GetMessage(channel, &sync_msg))
             {
@@ -402,7 +402,7 @@ namespace taas
     {
         uint64 epoch_mod = epoch % buffer_size;
         std::vector<std::vector<TxnRes> > send_buf;
-        send_buf.resize(config_->all_nodes_.size());
+        send_buf.resize(config_->replica_size_);
         // arrange distributed txn's result
         for (const auto& kv : commit_txns_[epoch_mod])
         {
