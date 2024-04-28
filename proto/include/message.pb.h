@@ -156,12 +156,13 @@ enum TxnStatus : int {
   ABORT = 2,
   COMMIT = 3,
   PRECOMMIT = 4,
+  WAIT = 5,
   TxnStatus_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   TxnStatus_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
 bool TxnStatus_IsValid(int value);
 constexpr TxnStatus TxnStatus_MIN = PEND;
-constexpr TxnStatus TxnStatus_MAX = PRECOMMIT;
+constexpr TxnStatus TxnStatus_MAX = WAIT;
 constexpr int TxnStatus_ARRAYSIZE = TxnStatus_MAX + 1;
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* TxnStatus_descriptor();

@@ -356,13 +356,13 @@ const char descriptor_table_protodef_message_2eproto[] PROTOBUF_SECTION_VARIABLE
   "\tSINGLETXN\020\003B\016\n\014message_type\"2\n\013ClientRe"
   "ply\022\020\n\010exec_res\030\001 \001(\010\022\021\n\tquery_set\030\002 \003(\t"
   "*3\n\006OpType\022\013\n\007INVALID\020\000\022\007\n\003GET\020\001\022\007\n\003PUT\020"
-  "\002\022\n\n\006DELETE\020\003*E\n\tTxnStatus\022\010\n\004PEND\020\000\022\010\n\004"
+  "\002\022\n\n\006DELETE\020\003*O\n\tTxnStatus\022\010\n\004PEND\020\000\022\010\n\004"
   "EXEC\020\001\022\t\n\005ABORT\020\002\022\n\n\006COMMIT\020\003\022\r\n\tPRECOMM"
-  "IT\020\004b\006proto3"
+  "IT\020\004\022\010\n\004WAIT\020\005b\006proto3"
   ;
 static ::_pbi::once_flag descriptor_table_message_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_message_2eproto = {
-    false, false, 1292, descriptor_table_protodef_message_2eproto,
+    false, false, 1302, descriptor_table_protodef_message_2eproto,
     "message.proto",
     &descriptor_table_message_2eproto_once, nullptr, 0, 11,
     schemas, file_default_instances, TableStruct_message_2eproto::offsets,
@@ -428,6 +428,7 @@ bool TxnStatus_IsValid(int value) {
     case 2:
     case 3:
     case 4:
+    case 5:
       return true;
     default:
       return false;

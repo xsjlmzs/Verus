@@ -482,13 +482,6 @@ namespace taas
                 usleep(100);
             }
         }
-
-        // set txn's end ts
-        for (size_t i = 0; i < commit_txns_[epoch_mod].size(); i++)
-        {
-            PB::Txn& txn = commit_txns_[epoch_mod].at(i);
-            txn.set_end_ts(GetTime());
-        }
         
         conn_->DeleteChannel(channel);
     }
@@ -521,6 +514,12 @@ namespace taas
     {
         uint64 epoch_mod = epoch % buffer_size;
         // enqueue waiting txns
+        for (auto &kv : commit_txns_[epoch_mod])
+        {
+            PB::Txn& txn = kv.second;
+            txn.set_end_ts(GetTime());
+        }
+        
         for (auto &kv : commit_txns_[epoch_mod])
         {
             PB::Txn& txn = kv.second;
@@ -573,7 +572,7 @@ namespace taas
             if (txn.status() == PB::TxnStatus::COMMIT)
             {
                 commit_txn_cnt += 1.0/double(txn.related_nodes_size());
-                latency += txn.end_ts() - txn.start_ts();
+                latency += double(txn.end_ts() - txn.start_ts());
             }
             else if(txn.status() == PB::TxnStatus::ABORT)
             {
@@ -622,6 +621,7 @@ namespace taas
             ValidateAtomic(epoch);
             LOG(INFO) << "epoch : " << epoch << " Validate Finish";
         }
+
         EnqueWaitTxns(epoch);
 
         // EpochWrite(epoch);
