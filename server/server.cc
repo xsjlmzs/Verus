@@ -342,7 +342,6 @@ namespace taas
     {
         // write intent for local txns and remote txns
         uint64 epoch_mod = epoch % buffer_size;
-        LOG(INFO) << "epoch_mod" << epoch_mod;
         for (PB::Txn& txn : local_txns_[epoch_mod])
         {
             bool res = WriteIntent(txn, epoch_mod);
@@ -454,10 +453,11 @@ namespace taas
             }
         }
 
+        LOG(INFO) << "epoch : " << epoch << "related nodes size = " << related_nodes_size;
         // receive related nodes's msg
         int received_nodes_size = 0;
         PB::MessageProto* msg = new PB::MessageProto();
-        while (received_nodes_size < related_nodes_size)
+        while (received_nodes_size < related_nodes_size - 1) // except itself
         {
             if (conn_->GetMessage(channel, msg))
             {
@@ -591,16 +591,15 @@ namespace taas
         LOG(INFO) << "epoch : " << epoch << " Start Merge";
         Merge(epoch);
         LOG(INFO) << "epoch : " << epoch << " Merge Finish";
-        LOG(INFO) << "commitTxns " << commit_txns_[epoch % buffer_size].size();
-        LOG(INFO) << "abortTxns " << abort_txns_[epoch % buffer_size].size();
+        // LOG(INFO) << "commitTxns " << commit_txns_[epoch % buffer_size].size();
+        // LOG(INFO) << "abortTxns " << abort_txns_[epoch % buffer_size].size();
         // validate atomic
         LOG(INFO) << "epoch : " << epoch << " Start Validate";
         ValidateAtomic(epoch);
         LOG(INFO) << "epoch : " << epoch << " Validate Finish";
 
-        EpochWrite(epoch);
-
-        
+        // EpochWrite(epoch);
+        LOG(INFO) << "epoch : " << epoch << " Write Finish";
         PrintStatistic(epoch);
         // Check Correctness
         #ifdef CHECK_ATOMIC
