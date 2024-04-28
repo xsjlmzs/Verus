@@ -34,6 +34,7 @@ int main(int argc, char *argv[])
             {"run_epoch",   optional_argument, nullptr,    'r'},
             {"isolation",   optional_argument, nullptr,    'i'},
             {"limit_txns",  optional_argument, nullptr,    'l'},
+            {"buffer_size", optional_argument, nullptr,    'b'},
             { nullptr,      0,                 nullptr,     0 }
         };
 
@@ -62,6 +63,9 @@ int main(int argc, char *argv[])
             break;
         case 'l':
             limit_txns = std::stoul(optarg);
+            break;
+        case 'b':
+            buffer_size = std::stoul(optarg);
             break;
         case  0 :
             if (long_options[option_index].flag != nullptr)

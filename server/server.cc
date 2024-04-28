@@ -269,6 +269,7 @@ namespace taas
                 {
                     cnt ++;
                     received_txn.mutable_single_txn()->set_status(PB::TxnStatus::PEND);
+                    received_txn.mutable_single_txn()->set_start_epoch(cur_epoch);
                     received_txn.mutable_single_txn()->set_start_ts(GetTime());
                     // LOG(INFO) << "debug" << received_txn.single_txn().txn_id();
                     PB::Txn *txn = new PB::Txn(received_txn.single_txn());
@@ -573,6 +574,7 @@ namespace taas
             {
                 commit_txn_cnt += 1.0/double(txn.related_nodes_size());
                 latency += double(txn.end_ts() - txn.start_ts());
+                LOG(INFO) << "single txn latency : " << txn.end_ts() - txn.start_ts() << " " << txn.end_epoch() << " " << txn.start_epoch();
             }
             else if(txn.status() == PB::TxnStatus::ABORT)
             {
@@ -624,9 +626,10 @@ namespace taas
 
         EnqueWaitTxns(epoch);
 
-        // EpochWrite(epoch);
+        EpochWrite(epoch);
         LOG(INFO) << "epoch : " << epoch << " Write Finish";
         PrintStatistic(epoch);
+        CleanBuffer(epoch);
         // Check Correctness
         #ifdef CHECK_ATOMIC
 
