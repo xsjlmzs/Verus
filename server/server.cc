@@ -95,9 +95,9 @@ namespace taas
         }
         
         // waiting for servers and proxy's replies
-        int sync_server_cnt = 0;
+        int sync_server_cnt = 1;
         // sync_msg.Clear();
-        while (sync_server_cnt < config_->all_servers_.size())
+        while (sync_server_cnt < config_->all_servers_.size() + config_->all_proxies_.size())
         {
             if(conn_->GetMessage(channel, &sync_msg))
             {
