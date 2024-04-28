@@ -574,7 +574,7 @@ namespace taas
             {
                 commit_txn_cnt += 1.0/double(txn.related_nodes_size());
                 latency += double(txn.end_ts() - txn.start_ts());
-                LOG(INFO) << "single txn latency : " << txn.end_ts() - txn.start_ts() << " " << txn.end_epoch() << " " << txn.start_epoch();
+                // LOG(INFO) << "single txn latency : " << txn.end_ts() - txn.start_ts() << " " << txn.end_epoch() << " " << txn.start_epoch();
             }
             else if(txn.status() == PB::TxnStatus::ABORT)
             {
