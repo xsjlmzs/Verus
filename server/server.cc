@@ -496,9 +496,9 @@ namespace taas
             lk.unlock();
         }
         uint64 epoch_mod = epoch % buffer_size;
-        for (const auto &kv : commit_txns_[epoch_mod])
+        for (auto &kv : commit_txns_[epoch_mod])
         {
-            const PB::Txn& txn = kv.second;
+            PB::Txn& txn = kv.second;
             if (txn.status() == PB::TxnStatus::COMMIT && !txn.read_only())
             {
                 storage_->LockWrite();
@@ -507,6 +507,7 @@ namespace taas
                     storage_->put(txn.write_set(i).key(), txn.write_set(i).value());
                 }
                 storage_->UnlockWrite();
+                txn.set_end_ts(GetTime());
             }
         }
     }
@@ -514,13 +515,6 @@ namespace taas
     void Server::EnqueWaitTxns(uint64 epoch)
     {
         uint64 epoch_mod = epoch % buffer_size;
-        // enqueue waiting txns
-        for (auto &kv : commit_txns_[epoch_mod])
-        {
-            PB::Txn& txn = kv.second;
-            txn.set_end_ts(GetTime());
-        }
-        
         for (auto &kv : commit_txns_[epoch_mod])
         {
             PB::Txn& txn = kv.second;
@@ -627,6 +621,7 @@ namespace taas
         EnqueWaitTxns(epoch);
 
         EpochWrite(epoch);
+        
         LOG(INFO) << "epoch : " << epoch << " Write Finish";
         PrintStatistic(epoch);
         CleanBuffer(epoch);
