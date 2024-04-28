@@ -249,6 +249,7 @@ namespace taas
                 cv_commit_.wait(lk, [this]{return this->epoch_manager_->GetCommittedEpoch() == this->limit_epoch_; });
                 lk.unlock();
                 thread_pool_->shutdown();
+                LOG(INFO) << "done!";
                 break;
             }
             
@@ -453,7 +454,7 @@ namespace taas
             }
         }
 
-        LOG(INFO) << "epoch : " << epoch << "related nodes size = " << related_nodes_size;
+        LOG(INFO) << "epoch : " << epoch << " related nodes size = " << related_nodes_size;
         // receive related nodes's msg
         int received_nodes_size = 0;
         PB::MessageProto* msg = new PB::MessageProto();
@@ -477,7 +478,7 @@ namespace taas
             }
             else
             {
-                sleep(100);
+                usleep(100);
             }
         }
         conn_->DeleteChannel(channel);
