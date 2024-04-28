@@ -20,6 +20,7 @@ enum TxnStatus {
     ABORT = 2;
     COMMIT = 3;
     PRECOMMIT = 4;
+    WAIT = 5;
 }
 
 // enum MessageType {

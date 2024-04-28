@@ -62,7 +62,7 @@ namespace taas
             }
         }
         storage_->UnlockRead();
-        txn->set_end_ts(GetTime());
+        // txn->set_end_ts(GetTime());
         txn->set_status(PB::TxnStatus::PRECOMMIT);
         {
             std::unique_lock<std::mutex> lk_epoch(add_epoch_mutex_);
@@ -482,6 +482,14 @@ namespace taas
                 usleep(100);
             }
         }
+
+        // set txn's end ts
+        for (size_t i = 0; i < commit_txns_[epoch_mod].size(); i++)
+        {
+            PB::Txn& txn = commit_txns_[epoch_mod].at(i);
+            txn.set_end_ts(GetTime());
+        }
+        
         conn_->DeleteChannel(channel);
     }
 
@@ -513,17 +521,18 @@ namespace taas
     {
         uint64 epoch_mod = epoch % buffer_size;
         // enqueue waiting txns
-        for (const auto &kv : commit_txns_[epoch_mod])
+        for (auto &kv : commit_txns_[epoch_mod])
         {
-            const PB::Txn& txn = kv.second;
+            PB::Txn& txn = kv.second;
             if (txn.status() != PB::TxnStatus::ABORT)
             {
                 if (txn.received_nodes_size() < txn.related_nodes_size())
                 {
+                    txn.set_status(PB::TxnStatus::WAIT);
                     std::unique_lock<std::shared_mutex> lk(mutex_wait_);
                     wait_txns_.push_back(txn);
                 }
-            }
+            }            
         }
 
         {
