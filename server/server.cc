@@ -455,7 +455,7 @@ namespace taas
             }
         }
 
-        LOG(INFO) << "epoch : " << epoch << " related nodes size = " << related_nodes_size;
+        // LOG(INFO) << "epoch : " << epoch << " related nodes size = " << related_nodes_size;
         // receive related nodes's msg
         int received_nodes_size = 0;
         PB::MessageProto* msg = new PB::MessageProto();
@@ -525,6 +525,12 @@ namespace taas
                 }
             }
         }
+
+        {
+            std::shared_lock<std::shared_mutex> lk(mutex_wait_);
+            LOG(INFO) << "epoch : " << epoch << " WaitTxns size = " << wait_txns_.size();
+        }
+
         {
             std::unique_lock<std::mutex> lk(cv_process_mutex_);
             epoch_manager_->AddProcessedEpoch();

@@ -73,6 +73,7 @@ void Proxy::Run()
                 {
                     subtxns[i].mutable_single_txn()->add_related_nodes(node_id);
                 }
+                subtxns[i].mutable_single_txn()->add_received_nodes(i);
                 subtxns[i].set_type(PB::MessageProto_MessageType_SINGLETXN);
                 subtxns[i].set_src_node_id(proxy_id_);
                 subtxns[i].set_dest_node_id(i);
