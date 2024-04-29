@@ -47,6 +47,7 @@ namespace taas
 
     void Server::Execute(PB::Txn* txn, uint64 epoch)
     {
+        txn->set_start_epoch(epoch);
         storage_->LockRead();
         txn->set_status(PB::TxnStatus::EXEC);
         for (size_t i = 0; i < txn->commands_size(); i++)
@@ -272,7 +273,6 @@ namespace taas
                 {
                     cnt ++;
                     received_txn.mutable_single_txn()->set_status(PB::TxnStatus::PEND);
-                    received_txn.mutable_single_txn()->set_start_epoch(cur_epoch);
                     received_txn.mutable_single_txn()->set_start_ts(GetTime());
                     // LOG(INFO) << "debug" << received_txn.single_txn().txn_id();
                     PB::Txn *txn = new PB::Txn(received_txn.single_txn());
