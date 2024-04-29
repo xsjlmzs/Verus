@@ -93,9 +93,11 @@ namespace taas
         std::thread worker_;
 
         std::mutex cnt_mutex_;
-        double total_txn_cnt_ = 0;
-        double total_latency_ = 0;
+        double total_commit_cnt_ = 0.0;
+        double total_txn_cnt_ = 0.0;
+        double total_latency_ = 0.0;
         uint64 launch_ts_ = 0;
+        double abort_rate_ = 0.0;
         
         uint64 limit_epoch_;
         uint32 limit_txns_;

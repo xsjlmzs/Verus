@@ -592,11 +592,13 @@ namespace taas
         LOG(ERROR) << "epoch: " << epoch << " commit_txn_cnt: " << commit_txn_cnt << " abort_txn_cnt: " << abort_txn_cnt;
         {
             std::lock_guard<std::mutex> lock(cnt_mutex_);
-            total_txn_cnt_ += commit_txn_cnt;
+            total_commit_cnt_ += commit_txn_cnt;
+            total_txn_cnt_ += commit_txn_cnt + abort_txn_cnt;
             total_latency_ += latency;
             // txns per second
-            report.append("avg_throught : " + DoubleToString(total_txn_cnt_ * 1000.0 / double(GetTime() - launch_ts_)) + "\n");
-            report.append("avg_lantency : " + DoubleToString(total_latency_ / total_txn_cnt_) + "\n");
+            report.append("avg_throught   : " + DoubleToString(total_commit_cnt_ * 1000.0 / double(GetTime() - launch_ts_)) + "\n");
+            report.append("avg_lantency   : " + DoubleToString(total_latency_ / total_commit_cnt_) + "\n");
+            report.append("avg_abort_rate : " + DoubleToString(total_commit_cnt_ / total_txn_cnt_) + "\n");
         }
         file << report;
     }
