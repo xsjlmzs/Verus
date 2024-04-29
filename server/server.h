@@ -29,7 +29,8 @@ namespace taas
         Connection* conn_;
         EpochManager* epoch_manager_;
         Storage* storage_;
-        ThreadPool* thread_pool_;
+        ThreadPool* txn_thread_pool_;
+        ThreadPool* epoch_thread_pool_;
 
         bool deconstructor_invoked_;
         // for local merge <key, tid>

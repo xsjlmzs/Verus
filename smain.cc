@@ -3,7 +3,7 @@
 #include "server.h"
 
 std::string isolations[]{"READ_COMMIT", "REPEATABLE_READ"};
-uint32 node_id = 0,thread_num = 16, buffer_size = 64;
+uint32 node_id = 0, epoch_thread = 16, buffer_size = 64, txn_thread = 64;
 std::string server_path = "../conf/server_ip.conf";
 std::string proxy_path = "../conf/proxy_ip.conf";
 uint32 epoch_length = 10ul;
@@ -30,7 +30,8 @@ int main(int argc, char *argv[])
         {
             {"node_id",     required_argument, nullptr,    'n'},
             {"epoch_length",optional_argument, nullptr,    'e'},
-            {"thread_num",  optional_argument, nullptr,    't'},
+            {"epoch_thread",optional_argument, nullptr,    't'},
+            {"txn_thread",  optional_argument, nullptr,    'x'},
             {"run_epoch",   optional_argument, nullptr,    'r'},
             {"isolation",   optional_argument, nullptr,    'i'},
             {"limit_txns",  optional_argument, nullptr,    'l'},
@@ -53,7 +54,10 @@ int main(int argc, char *argv[])
             epoch_length = std::stoul(optarg);
             break;
         case 't':
-            thread_num = std::stoi(optarg);
+            epoch_thread = std::stoi(optarg);
+            break;
+        case 'x':
+            txn_thread = std::stoi(optarg);
             break;
         case 'r':
             run_epoch = std::stoull(optarg);
@@ -80,7 +84,8 @@ int main(int argc, char *argv[])
     
     LOG(INFO) << "node : " << node_id;
     LOG(INFO) << "epoch_length : " << epoch_length;
-    LOG(INFO) << "thread_num : " << thread_num;
+    LOG(INFO) << "epoch_num : " << epoch_thread;
+    LOG(INFO) << "txn_thread : " << txn_thread;
     LOG(INFO) << "run_epoch : " << run_epoch; 
     LOG(INFO) << "isolation : " << isolations[isol];
     LOG(INFO) << "limit_txns : " << limit_txns;

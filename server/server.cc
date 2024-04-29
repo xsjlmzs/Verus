@@ -1,7 +1,8 @@
 
 #include "server.h"
 
-extern uint32 thread_num;
+extern uint32 epoch_thread;
+extern uint32 txn_thread;
 extern uint32 buffer_size;
 extern uint32 epoch_length;
 extern uint64 run_epoch;
@@ -17,8 +18,10 @@ namespace taas
         replica_id_ = node_id / config_->replica_size_;
         storage_ = new Storage();
         epoch_manager_ = &EpochManager::GetInstance();
-        thread_pool_ = new ThreadPool(thread_num);
-        thread_pool_->init();
+        epoch_thread_pool_ = new ThreadPool(epoch_thread);
+        epoch_thread_pool_->init();
+        txn_thread_pool_ = new ThreadPool(txn_thread);
+        txn_thread_pool_->init();
         // init 
         crdt_map_.resize(buffer_size);
         // mutexes_local_txns_.resize(buffer_size);
@@ -39,7 +42,7 @@ namespace taas
     Server::~Server() 
     {
         deconstructor_invoked_ = true;
-        delete storage_, thread_pool_;
+        delete storage_, epoch_thread_pool_, txn_thread_pool_;
     }
 
     void Server::Execute(PB::Txn* txn, uint64 epoch)
@@ -248,7 +251,7 @@ namespace taas
                 std::unique_lock<std::mutex> lk(cv_commit_mutex_);
                 cv_commit_.wait(lk, [this]{return this->epoch_manager_->GetCommittedEpoch() == this->limit_epoch_; });
                 lk.unlock();
-                thread_pool_->shutdown();
+                epoch_thread_pool_->shutdown();
                 LOG(INFO) << "done!";
                 break;
             }
@@ -273,8 +276,7 @@ namespace taas
                     received_txn.mutable_single_txn()->set_start_ts(GetTime());
                     // LOG(INFO) << "debug" << received_txn.single_txn().txn_id();
                     PB::Txn *txn = new PB::Txn(received_txn.single_txn());
-                    std::thread t(&Server::Execute, this, txn, cur_epoch_mod);
-                    t.detach(); // 独自执行
+                    txn_thread_pool_->submit(std::bind(&Server::Execute, this, txn, cur_epoch_mod));
                 }
             }
             LOG(INFO) << "epoch : " << cur_epoch << " " << "received " << cnt << " txns";
@@ -289,7 +291,7 @@ namespace taas
             // process with all other shard peer
             // worker
             usleep(1000);
-            thread_pool_->submit(std::bind(&Server::Work, this, cur_epoch));
+            epoch_thread_pool_->submit(std::bind(&Server::Work, this, cur_epoch));
             LOG(INFO) << "------ epoch "<< cur_epoch << " end ------";
         }
         conn_->DeleteChannel("Proxy");
