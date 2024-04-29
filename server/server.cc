@@ -598,7 +598,7 @@ namespace taas
             // txns per second
             report.append("avg_throught   : " + DoubleToString(total_commit_cnt_ * 1000.0 / double(GetTime() - launch_ts_)) + "\n");
             report.append("avg_lantency   : " + DoubleToString(total_latency_ / total_commit_cnt_) + "\n");
-            report.append("avg_abort_rate : " + DoubleToString(total_commit_cnt_ / total_txn_cnt_) + "\n");
+            report.append("avg_abort_rate : " + DoubleToString((total_txn_cnt_ - total_commit_cnt_) / total_txn_cnt_) + "\n");
         }
         file << report;
     }
