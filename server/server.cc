@@ -3,6 +3,7 @@
 
 extern uint32 epoch_thread;
 extern uint32 txn_thread;
+extern uint32 timeout;
 extern uint32 buffer_size;
 extern uint32 epoch_length;
 extern uint64 run_epoch;
@@ -11,7 +12,7 @@ extern uint32 limit_txns;
 namespace taas 
 {
     Server::Server(Configuration *config, Connection *conn, uint32 node_id)
-        :config_(config), conn_(conn), isolation(isol), limit_epoch_(run_epoch), limit_txns_(limit_txns),deconstructor_invoked_(false)
+        :config_(config), conn_(conn), isolation(isol), limit_epoch_(run_epoch), limit_txns_(limit_txns), timeout_(timeout), deconstructor_invoked_(false)
     {
         server_id_ = node_id;
         parition_id_ = node_id % config->replica_size_;
@@ -536,6 +537,12 @@ namespace taas
             {
                 if (txn.received_nodes_size() < txn.related_nodes_size())
                 {
+                    if (epoch - txn.end_epoch() > timeout_)
+                    {
+                        txn.set_status(PB::TxnStatus::ABORT);
+                        continue;
+                    }
+                    
                     txn.set_status(PB::TxnStatus::WAIT);
                     std::unique_lock<std::shared_mutex> lk(mutex_wait_);
                     wait_txns_.push(txn);
@@ -643,6 +650,7 @@ namespace taas
         PrintStatistic(epoch);
         CleanBuffer(epoch);
         // Check Correctness
+
         #ifdef CHECK_ATOMIC
 
         #endif

@@ -3,7 +3,7 @@
 #include "server.h"
 
 std::string isolations[]{"READ_COMMIT", "REPEATABLE_READ"};
-uint32 node_id = 0, epoch_thread = 16, buffer_size = 64, txn_thread = 64;
+uint32 node_id = 0, epoch_thread = 16, buffer_size = 64, txn_thread = 64, timeout = 10;
 std::string server_path = "../conf/server_ip.conf";
 std::string proxy_path = "../conf/proxy_ip.conf";
 uint32 epoch_length = 10ul;
@@ -36,6 +36,7 @@ int main(int argc, char *argv[])
             {"isolation",   optional_argument, nullptr,    'i'},
             {"limit_txns",  optional_argument, nullptr,    'l'},
             {"buffer_size", optional_argument, nullptr,    'b'},
+            {"timeout",     optional_argument, nullptr,    'o'},
             { nullptr,      0,                 nullptr,     0 }
         };
 
@@ -71,6 +72,9 @@ int main(int argc, char *argv[])
         case 'b':
             buffer_size = std::stoul(optarg);
             break;
+        case 'o':
+            timeout = std::stoul(optarg);
+            break;
         case  0 :
             if (long_options[option_index].flag != nullptr)
                 break;
@@ -90,6 +94,7 @@ int main(int argc, char *argv[])
     LOG(INFO) << "isolation : " << isolations[isol];
     LOG(INFO) << "limit_txns : " << limit_txns;
     LOG(INFO) << "buffer_size : " << buffer_size;
+    LOG(INFO) << "timeout_size : " << timeout;
     std::unique_ptr<Configuration> config(new Configuration(server_path, proxy_path));
     std::unique_ptr<Connection> conn(new Connection(config.get(), config->all_servers_[node_id]->port));
     Spin(1);

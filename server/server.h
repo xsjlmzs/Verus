@@ -103,6 +103,7 @@ namespace taas
         
         uint64 limit_epoch_;
         uint32 limit_txns_;
+        uint32 timeout_;
 
         std::mutex cv_commit_mutex_;
         std::condition_variable cv_commit_;
