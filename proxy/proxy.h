@@ -19,16 +19,15 @@ private:
     bool deconstructor_invoked_;
 
     uint32 proxy_id_;
-    std::thread worker_;
+    std::vector<std::thread> thread_list_;
 public:
     Proxy(Configuration* config, Connection* conn, Client* client, uint32 proxy_id);
     ~Proxy();
 
     void HeartBeat();
     uint32 Hash(std::string key);
+    void Work(uint32 thread_id);
     void Run();
-    uint64 GenerateTid();
-    void Join();
 };
 
 

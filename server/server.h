@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <queue>
 #include <unordered_set>
 
 #include "common.h"
@@ -53,7 +54,7 @@ namespace taas
         std::vector<std::vector<PB::Txn> > remote_txns_;
         // WaitTxns
         std::shared_mutex mutex_wait_;
-        std::vector<PB::Txn> wait_txns_;
+        std::queue<PB::Txn> wait_txns_;
         // CommitTxns & AbortTxns
         // struct Hash
         // {

@@ -1,14 +1,15 @@
 #include "proxy.h"
 
+extern uint32 thread_num;
+
 Proxy::Proxy(Configuration* config, Connection* conn, Client* client, uint32 proxy_id)
     : config_(config), conn_(conn),client_(client), proxy_id_(proxy_id)
 {
     deconstructor_invoked_ = false;
-
     LOG(INFO) << "Proxy init Start";
     HeartBeat();
     LOG(INFO) << "Proxy init End";
-    worker_ = std::thread(&Proxy::Run, this);
+    Run();
 }
 
 Proxy::~Proxy()
@@ -42,16 +43,16 @@ uint32 Proxy::Hash(std::string key)
     return uint32 (key_uint64 % uint64(nparts));
 }
 
-void Proxy::Run()
+void Proxy::Work(uint32 thread_id)
 {
     std::string channel = "Proxy";
-    conn_->NewChannel(channel);
+    uint64 tid = uint64(thread_id);
     while (!deconstructor_invoked_)
     {
         std::vector<PB::MessageProto> subtxns(config_->replica_size_);
         PB::Txn* txn = nullptr;
-        client_->NewTxn(&txn, GenerateTid());
-        bool read_only_txn = true;
+        client_->NewTxn(&txn, tid);
+        tid += thread_num;
         std::unordered_set<uint32> related_nodes;
         // distribute
         for (size_t i = 0; i < txn->commands_size(); i++)
@@ -83,14 +84,18 @@ void Proxy::Run()
     }
 }
 
-uint64 Proxy::GenerateTid()
+void Proxy::Run()
 {
-    static uint64 counter = proxy_id_;
-    counter += config_->all_proxies_.size();
-    return counter;
-}
+    std::string channel = "Proxy";
+    conn_->NewChannel(channel);
 
-void Proxy::Join()
-{
-    worker_.join();
+    for (size_t i = 0; i < thread_num; i++)
+    {
+        thread_list_.push_back(std::thread(&Proxy::Work, this, i));
+    }
+    for (auto &thread : thread_list_)
+    {
+        thread.join();
+    }
+    conn_->DeleteChannel(channel);
 }

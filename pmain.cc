@@ -3,6 +3,7 @@
 #include "proxy.h"
 #include "client.h"
 
+uint32 thread_num = 16;
 uint32 warerhouse = 100, percent_mp = 10;
 std::string server_path = "../conf/server_ip.conf";
 std::string proxy_path = "../conf/proxy_ip.conf";
@@ -25,9 +26,10 @@ int main(int argc, char *argv[])
         int option_index = 0;
         static struct option long_options[] = 
         {
-            {"proxy_id",     required_argument, nullptr,    'n'},
+            {"proxy_id",    required_argument, nullptr,    'n'},
             {"warehouse",   optional_argument, nullptr,    'w'},
             {"percent_mp",  optional_argument, nullptr,    'm'},
+            {"thread_num",  optional_argument, nullptr,    't'},
             { nullptr,      0,                 nullptr,     0 }
         };
 
@@ -47,6 +49,9 @@ int main(int argc, char *argv[])
             break;
         case 'm':
             percent_mp = std::stoi(optarg);
+            break;
+        case 't':
+            thread_num = std::stoi(optarg);
             break;
         case  0 :
             if (long_options[option_index].flag != nullptr)
@@ -68,7 +73,6 @@ int main(int argc, char *argv[])
     std::unique_ptr<Client> client(new Client(config.get(), percent_mp, warerhouse));
 
     std::unique_ptr<Proxy>  proxy(new Proxy(config.get(), conn.get(), client.get(), proxy_id));
-    proxy->Join();
 
     google::ShutdownGoogleLogging();
     return 0;

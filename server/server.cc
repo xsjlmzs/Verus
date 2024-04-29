@@ -343,6 +343,7 @@ namespace taas
     // process crdt merge
     void Server::Merge(uint64 epoch)
     {
+        std::vector<PB::Txn> all_txns;
         // write intent for local txns and remote txns
         uint64 epoch_mod = epoch % buffer_size;
         for (PB::Txn& txn : local_txns_[epoch_mod])
@@ -350,15 +351,17 @@ namespace taas
             bool res = WriteIntent(txn, epoch_mod);
             if (!res)
                 txn.set_status(PB::TxnStatus::ABORT);
+            all_txns.push_back(txn);
         }
         for (PB::Txn& txn : remote_txns_[epoch_mod])
         {
             bool res = WriteIntent(txn, epoch_mod);
             if (!res)
                 txn.set_status(PB::TxnStatus::ABORT);
+            all_txns.push_back(txn);
         }
+
         // wait & write intent for WaitTxns if mul-replica
-        
         if (config_->replica_num_ > 1)
         {
             // wait until last epoch's write completed
@@ -367,18 +370,23 @@ namespace taas
                 cv_process_.wait(lk, [this, epoch]{return this->epoch_manager_->GetProcessedEpoch() == epoch-1; });
                 lk.unlock();
             }
+        }
+        {
             std::shared_lock<std::shared_mutex> lk(mutex_wait_);
-            for (PB::Txn& txn: wait_txns_)
+            while (!wait_txns_.empty())
             {
+                PB::Txn txn = wait_txns_.front();
+                wait_txns_.pop();
                 bool res = WriteIntent(txn, epoch_mod);
                 if (!res)
                     txn.set_status(PB::TxnStatus::ABORT);
+                all_txns.push_back(txn);
             }
         }
 
         // validate write set
-        // LOG(INFO) << "local txns size" << local_txns_[epoch_mod].size();
-        for (PB::Txn& txn : local_txns_[epoch_mod])
+        // local txns
+        for (PB::Txn& txn : all_txns)
         {
             if (txn.status() == PB::ABORT)
             {
@@ -524,7 +532,7 @@ namespace taas
                 {
                     txn.set_status(PB::TxnStatus::WAIT);
                     std::unique_lock<std::shared_mutex> lk(mutex_wait_);
-                    wait_txns_.push_back(txn);
+                    wait_txns_.push(txn);
                 }
             }            
         }
