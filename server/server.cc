@@ -377,7 +377,7 @@ namespace taas
             }
         }
         {
-            std::shared_lock<std::shared_mutex> lk(mutex_wait_);
+            std::unique_lock<std::shared_mutex> lk(mutex_wait_);
             while (!wait_txns_.empty())
             {
                 PB::Txn txn = wait_txns_.front();
