@@ -29,6 +29,7 @@ namespace taas
         remote_txns_.resize(buffer_size);
         commit_txns_.resize(buffer_size);
         abort_txns_.resize(buffer_size);
+        memset(is_full, sizeof(is_full), 0);
         LOG(INFO) << "Start Sync All Servers";
 
         HeartbeatAllServers();
@@ -75,6 +76,8 @@ namespace taas
             uint64 epoch_mod = cur_epoch % buffer_size;
             std::unique_lock<std::mutex> lk_vector(mutexes_local_txns_[epoch_mod]);
             local_txns_[epoch_mod].push_back(*txn);
+            if (local_txns_[epoch_mod].size() > limit_txns_)
+                is_full[epoch_mod] = true;
         }
         delete txn;
     }
@@ -262,7 +265,7 @@ namespace taas
             uint32 cnt = 0;
             while (GetTime() - start_time < epoch_manager_->GetEpochDuration())
             {
-                if (local_txns_[cur_epoch_mod].size() > limit_txns_)
+                if (is_full[cur_epoch_mod])
                 {
                     // dont receive new txns anymore 
                     usleep(100);
@@ -559,6 +562,7 @@ namespace taas
         local_txns_[epoch_mod].clear();
         commit_txns_[epoch_mod].clear();
         abort_txns_[epoch_mod].clear();
+        is_full[epoch_mod] = false;
         if (config_->replica_num_ > 1)
             remote_txns_[epoch_mod].clear();
     }

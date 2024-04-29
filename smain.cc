@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
     
     LOG(INFO) << "node : " << node_id;
     LOG(INFO) << "epoch_length : " << epoch_length;
-    LOG(INFO) << "epoch_num : " << epoch_thread;
+    LOG(INFO) << "epoch_thread : " << epoch_thread;
     LOG(INFO) << "txn_thread : " << txn_thread;
     LOG(INFO) << "run_epoch : " << run_epoch; 
     LOG(INFO) << "isolation : " << isolations[isol];

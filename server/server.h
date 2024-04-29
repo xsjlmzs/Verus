@@ -49,7 +49,8 @@ namespace taas
         
         std::vector<std::map<std::string, Metadata> > crdt_map_;
         // local txn <epoch-id, txns>
-        std::mutex mutexes_local_txns_[512];
+        std::mutex mutexes_local_txns_[256];
+        bool is_full[256];
         std::mutex add_epoch_mutex_;
         std::vector<std::vector<PB::Txn> > local_txns_;
         std::vector<std::vector<PB::Txn> > remote_txns_;
