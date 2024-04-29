@@ -388,6 +388,7 @@ namespace taas
 
         // validate write set
         // local txns
+        // LOG(INFO) << "epoch : " << epoch << " all_txns size = " << commit_txns_[epoch_mod].size() << " remote_txns size = " << abort_txns_[epoch_mod].size();
         for (PB::Txn& txn : all_txns)
         {
             if (txn.status() == PB::ABORT)
@@ -557,7 +558,7 @@ namespace taas
         crdt_map_[epoch_mod].clear();
         local_txns_[epoch_mod].clear();
         commit_txns_[epoch_mod].clear();
-        commit_txns_[epoch_mod].clear();
+        abort_txns_[epoch_mod].clear();
         if (config_->replica_num_ > 1)
             remote_txns_[epoch_mod].clear();
     }
