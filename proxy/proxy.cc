@@ -76,7 +76,7 @@ void Proxy::Work(uint32 thread_id)
                 subtxns[i].mutable_single_txn()->add_received_nodes(i);
                 subtxns[i].set_type(PB::MessageProto_MessageType_SINGLETXN);
                 subtxns[i].set_src_node_id(proxy_id_);
-                subtxns[i].set_dest_node_id(i);
+                subtxns[i].set_dest_node_id(proxy_id_ * config_->replica_size_ + i);
                 subtxns[i].set_dest_channel(channel);
                 conn_->Send(subtxns[i]);
             }
